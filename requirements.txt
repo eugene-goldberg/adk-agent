@@ -1,0 +1,6 @@
+google-adk>=0.2.0
+fastapi>=0.115.0
+uvicorn>=0.23.0
+pydantic>=2.0.0
+zoneinfo>=0.2.1; python_version < '3.9'
+python-multipart>=0.0.6
