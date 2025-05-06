@@ -1,6 +1,11 @@
-# ADK Short Bot
+# ADK Agents
 
-A Python-based agent that helps shorten messages using Google's Agent Development Kit (ADK) and Vertex AI.
+A collection of Python-based agents using Google's Agent Development Kit (ADK) and Vertex AI.
+
+## Included Agents
+
+1. **Short Bot** - An agent that shortens messages while maintaining their core meaning
+2. **Weather Agent** - An agent that provides weather forecasts for locations around the world
 
 ## Prerequisites
 
@@ -15,8 +20,8 @@ A Python-based agent that helps shorten messages using Google's Agent Developmen
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/bhancockio/deploy-adk-agent-engine.git
-cd adk-short-bot
+git clone https://github.com/eugene-goldberg/adk-agent.git
+cd adk-agent
 ```
 
 2. Install Poetry if you haven't already:
@@ -57,69 +62,137 @@ gcloud services enable aiplatform.googleapis.com
 
 ## Usage
 
-### Local Testing
+### Short Bot
+
+#### Local Testing
 
 1. Create a new session:
 ```bash
-poetry run deploy-local --create_session
+poetry run deploy-short-local --create_session
 ```
 
 2. List all sessions:
 ```bash
-poetry run deploy-local --list_sessions
+poetry run deploy-short-local --list_sessions
 ```
 
 3. Get details of a specific session:
 ```bash
-poetry run deploy-local --get_session --session_id=your-session-id
+poetry run deploy-short-local --get_session --session_id=your-session-id
 ```
 
 4. Send a message to shorten:
 ```bash
-poetry run deploy-local --send --session_id=your-session-id --message="Shorten this message: Hello, how are you doing today?"
+poetry run deploy-short-local --send --session_id=your-session-id --message="Shorten this message: Hello, how are you doing today?"
 ```
 
-### Remote Deployment
+#### Remote Deployment
 
 1. Deploy the agent:
 ```bash
-poetry run deploy-remote --create
+poetry run deploy-short-remote --create
 ```
 
 2. Create a session:
 ```bash
-poetry run deploy-remote --create_session --resource_id=your-resource-id
+poetry run deploy-short-remote --create_session --resource_id=your-resource-id
 ```
 
 3. List sessions:
 ```bash
-poetry run deploy-remote --list_sessions --resource_id=your-resource-id
+poetry run deploy-short-remote --list_sessions --resource_id=your-resource-id
 ```
 
 4. Send a message:
 ```bash
-poetry run deploy-remote --send --resource_id=your-resource-id --session_id=your-session-id --message="Hello, how are you doing today? So far, I've made breakfast today, walkted dogs, and went to work."
+poetry run deploy-short-remote --send --resource_id=your-resource-id --session_id=your-session-id --message="Hello, how are you doing today? So far, I've made breakfast today, walked dogs, and went to work."
 ```
 
-5. Clean up (delete deployment):
+### Weather Agent
+
+#### Local Testing
+
+1. Create a new session:
 ```bash
-poetry run deploy-remote --delete --resource_id=your-resource-id
+poetry run deploy-weather-local --create_session
+```
+
+2. List all sessions:
+```bash
+poetry run deploy-weather-local --list_sessions
+```
+
+3. Get details of a specific session:
+```bash
+poetry run deploy-weather-local --get_session --session_id=your-session-id
+```
+
+4. Send a message for weather information:
+```bash
+poetry run deploy-weather-local --send --session_id=your-session-id --message="What's the weather like in London today?"
+```
+
+#### Remote Deployment
+
+1. Deploy the agent:
+```bash
+poetry run deploy-weather-remote --create
+```
+
+2. Create a session:
+```bash
+poetry run deploy-weather-remote --create_session --resource_id=your-resource-id
+```
+
+3. List sessions:
+```bash
+poetry run deploy-weather-remote --list_sessions --resource_id=your-resource-id
+```
+
+4. Send a message:
+```bash
+poetry run deploy-weather-remote --send --resource_id=your-resource-id --session_id=your-session-id --message="What will the weather be like in Tokyo for the next 5 days?"
+```
+
+### Cleanup
+
+To delete any deployment:
+```bash
+poetry run deploy-short-remote --delete --resource_id=your-resource-id
+# or
+poetry run deploy-weather-remote --delete --resource_id=your-resource-id
 ```
 
 ## Project Structure
 
 ```
-adk-short-bot/
-├── adk_short_bot/          # Main package directory
+adk-agent/
+├── adk_short_bot/             # Short Bot package directory
 │   ├── __init__.py
-│   ├── agent.py           # Agent implementation
-│   └── prompt.py          # Prompt templates
-├── deployment/            # Deployment scripts
-│   ├── local.py          # Local testing script
-│   └── remote.py         # Remote deployment script
-├── .env                  # Environment variables
-├── poetry.lock          # Poetry lock file
-└── pyproject.toml       # Project configuration
+│   ├── agent.py              # Short Bot implementation
+│   ├── prompt.py             # Short Bot prompt templates
+│   └── tools/                # Short Bot tools
+│       ├── __init__.py
+│       └── character_counter.py
+├── weather_agent/            # Weather Agent package directory
+│   ├── __init__.py
+│   ├── agent.py              # Weather Agent implementation
+│   ├── prompt.py             # Weather Agent prompt templates
+│   └── tools/                # Weather Agent tools
+│       ├── __init__.py
+│       └── weather_api.py
+├── deployment/               # Deployment scripts
+│   ├── local.py              # Short Bot local testing script
+│   ├── remote.py             # Short Bot remote deployment script
+│   ├── weather_local.py      # Weather Agent local testing script
+│   ├── weather_remote.py     # Weather Agent remote deployment script
+│   └── cleanup.py            # Cleanup script for deployments
+├── list_agents.sh            # Helper script to list agents
+├── list_sessions.sh          # Helper script to list sessions
+├── commands.md               # Documentation of Poetry commands
+├── .env                      # Environment variables
+├── poetry.lock               # Poetry lock file
+└── pyproject.toml            # Project configuration
 ```
 
 ## Development

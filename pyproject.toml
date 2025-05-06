@@ -1,9 +1,10 @@
 [project]
-name = "adk-short-bot"
+name = "adk-agents"
 version = "0.1.0"
-description = "A bot that shortens your messages"
+description = "ADK agents built with Google's Agent Development Kit"
 authors = [
-    {name = "Brandon Hancock", email = "brandon@brandonhancock.io"}
+    {name = "Brandon Hancock", email = "brandon@brandonhancock.io"},
+    {name = "Eugene Goldberg", email = "eugene.goldberg@example.com"}
 ]
 readme = "README.md"
 requires-python = ">=3.12"
@@ -20,13 +21,18 @@ absl-py = "^2.1.0"
 cloudpickle = "^3.0.0"
 
 [tool.poetry.scripts]
+# Short Bot scripts
 adk-short-bot = "adk_short_bot:app"
-deploy-local = "deployment.local:main"
-deploy-remote = "deployment.remote:main"
+deploy-short-local = "deployment.local:main"
+deploy-short-remote = "deployment.remote:main"
+
+# Weather agent scripts
+deploy-weather-local = "deployment.weather_local:main"
+deploy-weather-remote = "deployment.weather_remote:main"
+
+# Shared scripts
 cleanup = "deployment.cleanup:cleanup_deployment"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
-
- 
