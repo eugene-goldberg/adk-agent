@@ -9,6 +9,11 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.12"
 license = "Apache License 2.0"
+packages = [
+    {include = "adk_short_bot"},
+    {include = "weather_agent"},
+    {include = "deployment"}
+]
 
 [tool.poetry.dependencies]
 python = ">=3.12"
