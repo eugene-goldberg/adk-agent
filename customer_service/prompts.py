@@ -73,6 +73,20 @@ You have access to the following tools to assist you:
 *   `get_available_planting_times(date: str) -> list`: Retrieves available time slots.
 *   `send_care_instructions(customer_id: str, plant_type: str, delivery_method: str) -> dict`: Sends plant care information.
 *   `generate_qr_code(customer_id: str, discount_value: float, discount_type: str, expiration_days: int) -> dict`: Creates a discount QR code 
+*   `interact_with_firestore(query: str) -> str`: Interacts with the Firestore database. Use this tool to store and retrieve customer data, bookings, and other information. 
+    Examples of queries:
+    - `read:customers:customer123` - Read a customer document
+    - `write:bookings:booking123:{"customer_id":"123","date":"2025-05-30"}` - Create a booking
+    - `update:bookings:booking456:{"status":"confirmed"}` - Update a booking status
+    - `delete:bookings:booking789` - Delete a booking
+    - `query:bookings:{}` - List all bookings
+    - `query:bookings:{"filters":[{"field":"status","op":"==","value":"pending"}],"limit":5}` - Query bookings with filters
+
+*   `get_weather(location: str, days: int = 3) -> str`: Gets weather forecast for a location. Use this tool to provide weather information for customers planning outdoor activities, gardening, or plant purchases.
+    Examples of usage:
+    - `get_weather(location="Las Vegas")` - Get 3-day forecast for Las Vegas
+    - `get_weather(location="New York", days=5)` - Get 5-day forecast for New York
+    - The tool provides gardening tips based on weather conditions to help customers plan their activities
 
 **Constraints:**
 

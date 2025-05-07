@@ -61,10 +61,15 @@ def create() -> None:
             requirements=[
                 "google-cloud-aiplatform[adk,agent_engines]",
                 "pydantic-settings==2.8.1",
+                "google-cloud-firestore>=2.16.1",
+                "requests>=2.31.0",
             ],
-            extra_packages=["./customer_service"],
+            extra_packages=["./customer_service", "./weather_agent"],
             display_name="customer-service-agent",
-            description="A customer service agent for Cymbal Home & Garden that helps customers with product recommendations, order management, and service scheduling.",
+            description="A customer service agent for Cymbal Home & Garden with Firestore and Weather integrations that helps customers with product recommendations, bookings, and gardening advice.",
+            environment_variables={
+                "OPENWEATHERMAP_API_KEY": os.getenv("OPENWEATHERMAP_API_KEY", ""),
+            },
         )
         print(f"Created remote app: {remote_app.resource_name}")
     except Exception as e:
@@ -148,12 +153,15 @@ def main(argv=None):
     load_dotenv()
 
     # Now we can safely access the flags
-    project_id = (
-        FLAGS.project_id if FLAGS.project_id else os.getenv("GOOGLE_CLOUD_PROJECT")
-    )
+    # Always use the pickuptruckapp project for Firestore integration
+    project_id = FLAGS.project_id if FLAGS.project_id else "pickuptruckapp"
     location = FLAGS.location if FLAGS.location else os.getenv("GOOGLE_CLOUD_LOCATION")
     bucket = FLAGS.bucket if FLAGS.bucket else os.getenv("GOOGLE_CLOUD_STAGING_BUCKET")
     user_id = FLAGS.user_id
+    
+    print(f"Using project ID: {project_id}")
+    print(f"Using location: {location}")
+    print(f"Using bucket: {bucket}")
 
     if not project_id:
         print("Missing required environment variable: GOOGLE_CLOUD_PROJECT")

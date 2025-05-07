@@ -19,8 +19,9 @@ import uuid
 import json
 from datetime import datetime, timedelta
 
-# Import the Firestore agent instance - will be set later to avoid circular imports
+# Import the agent instances - will be set later to avoid circular imports
 firestore_agent_instance = None
+weather_agent_instance = None
 
 logger = logging.getLogger(__name__)
 
@@ -470,4 +471,68 @@ async def interact_with_firestore(query: str) -> str:
         return result
     except Exception as e:
         logger.error(f"Error in interact_with_firestore: {e}")
+        return json.dumps({"error": str(e)})
+
+
+async def get_weather(location: str, days: int = 3) -> str:
+    """
+    Get weather forecast for a location using the Weather Agent.
+    
+    This function allows the customer service agent to provide weather information
+    to customers who may be planning outdoor activities, gardening, or plant purchases.
+    
+    Args:
+        location (str): The city or location to get the weather forecast for
+        days (int, optional): Number of days to forecast. Defaults to 3.
+        
+    Returns:
+        str: JSON string containing the weather forecast data
+        
+    Example:
+        >>> await get_weather(location="London")
+        '{"location": {"name": "London", "country": "UK"}, "current": {"temp_c": 18, "condition": "Partly Cloudy", ...}, "forecast": {...}}'
+        
+        >>> await get_weather(location="Tokyo", days=5)
+        '{"location": {"name": "Tokyo", "country": "Japan"}, "current": {...}, "forecast": {"days": [...]}}'
+    """
+    if not weather_agent_instance:
+        return json.dumps({"error": "Weather agent not initialized"})
+    
+    logger.info(f"Getting weather forecast for {location} for {days} days")
+    
+    try:
+        # Call the weather agent's get_weather_forecast function
+        result = weather_agent_instance.tools[0](location=location, days=days)
+        
+        # Format the response for better readability in the customer context
+        try:
+            weather_data = json.loads(result)
+            
+            # Add customer-friendly messaging
+            if "error" not in weather_data:
+                current = weather_data.get("current", {})
+                condition = current.get("condition", "")
+                temp = current.get("temp_c")
+                
+                if condition and temp is not None:
+                    weather_data["customer_message"] = f"Currently {condition} and {temp}°C in {weather_data.get('location', {}).get('name', location)}"
+                    
+                    # Add activity recommendations based on weather
+                    if condition.lower() in ["rain", "rainy", "thunderstorms", "snowy"]:
+                        weather_data["gardening_tip"] = "Not a good day for planting. Consider indoor plant care or planning."
+                    elif condition.lower() in ["sunny", "clear"]:
+                        weather_data["gardening_tip"] = "Perfect weather for planting or garden maintenance!"
+                    elif condition.lower() in ["partly cloudy", "cloudy"]:
+                        weather_data["gardening_tip"] = "Good conditions for most gardening activities."
+            
+            # Re-serialize with the customer-friendly enhancements
+            result = json.dumps(weather_data)
+            
+        except json.JSONDecodeError:
+            # If we can't parse the result, just return it as is
+            pass
+        
+        return result
+    except Exception as e:
+        logger.error(f"Error in get_weather: {e}")
         return json.dumps({"error": str(e)})
