@@ -30,6 +30,15 @@ class AgentModel(BaseModel):
     model: str = Field(default="gemini-2.0-flash-001")
 
 
+class FirestoreConfig(BaseModel):
+    """Firestore configuration settings."""
+
+    project_id: str = Field(default="pickuptruckapp", description="Google Cloud Project ID for Firestore.") # Updated default
+    database_id: str = Field(default="(default)", description="Firestore database ID (e.g., (default)).")
+    # Add other Firestore-specific settings here, like credentials path if not using ADC
+    # credentials_path: str | None = Field(default=None, description="Path to Firestore service account key file.")
+
+
 class Config(BaseSettings):
     """Configuration settings for the customer service agent."""
 
@@ -41,6 +50,7 @@ class Config(BaseSettings):
         case_sensitive=True,
     )
     agent_settings: AgentModel = Field(default=AgentModel())
+    firestore_settings: FirestoreConfig = Field(default=FirestoreConfig())
     app_name: str = "customer_service_app"
     CLOUD_PROJECT: str = Field(default="my_project")
     CLOUD_LOCATION: str = Field(default="us-central1")

@@ -16,7 +16,11 @@
 
 import logging
 import uuid
+import json
 from datetime import datetime, timedelta
+
+# Import the Firestore agent instance - will be set later to avoid circular imports
+firestore_agent_instance = None
 
 logger = logging.getLogger(__name__)
 
@@ -386,3 +390,84 @@ def generate_qr_code(
         "qr_code_data": "MOCK_QR_CODE_DATA",  # Replace with actual QR code
         "expiration_date": expiration_date,
     }
+
+
+async def interact_with_firestore(query: str) -> str:
+    """
+    Interacts with the Firestore database via the FirestoreAgent.
+
+    This function allows the customer service agent to store and retrieve customer data,
+    bookings, and other information from the Firestore database.
+
+    Args:
+        query (str): The query or command to send to the FirestoreAgent.
+            Format: operation:collection:document_id[:data]
+            
+            Operations:
+            - read: Read a document (read:collection_name:document_id)
+            - write: Write a document (write:collection_name:document_id:json_data)
+            - update: Update a document (update:collection_name:document_id:json_data)
+            - delete: Delete a document (delete:collection_name:document_id)
+            - query: Query a collection (query:collection_name:json_query_params)
+            
+            Examples:
+            - read:customers:customer123
+            - write:bookings:booking123:{"customer_id":"123","date":"2025-05-30"}
+            - update:bookings:booking456:{"status":"confirmed"}
+            - delete:bookings:booking789
+            - query:bookings:{}  (list all bookings)
+            - query:bookings:{"filters":[{"field":"status","op":"==","value":"pending"}],"limit":5,"order_by":"createdAt","direction":"DESCENDING"}
+
+    Returns:
+        str: The JSON result from the FirestoreAgent.
+
+    Example:
+        >>> await interact_with_firestore(query="read:customers:customer123")
+        '{"success": true, "data": {"name": "John Doe", "email": "john@example.com"}, "id": "customer123"}'
+    """
+    if not query:
+        return json.dumps({"error": "Empty query provided"})
+    
+    logger.info("Interacting with Firestore with query: %s", query)
+    
+    if not firestore_agent_instance:
+        return json.dumps({"error": "Firestore agent not initialized"})
+    
+    try:
+        # Process the query through the Firestore agent
+        result = await firestore_agent_instance.process_query(query)
+        
+        # Parse the result to make it more customer service friendly
+        try:
+            result_dict = json.loads(result)
+            
+            # For bookings collection, add some customer-friendly details
+            if "documents" in result_dict and query.startswith("query:bookings"):
+                for doc in result_dict.get("documents", []):
+                    # Format dates in a more readable way
+                    if "pickupDateTime" in doc:
+                        pickup_date = doc["pickupDateTime"].split("T")[0]
+                        pickup_time = doc["pickupDateTime"].split("T")[1].split("+")[0]
+                        doc["formatted_pickup"] = f"{pickup_date} at {pickup_time}"
+                    
+                    # Add status description
+                    if "status" in doc:
+                        status_map = {
+                            "pending": "Awaiting confirmation",
+                            "confirmed": "Booking confirmed",
+                            "cancelled": "Booking cancelled",
+                            "completed": "Service completed"
+                        }
+                        doc["status_description"] = status_map.get(doc["status"], doc["status"])
+            
+            # Reserialize with the enhancements
+            result = json.dumps(result_dict)
+            
+        except json.JSONDecodeError:
+            # If we can't parse the result, just return it as is
+            pass
+        
+        return result
+    except Exception as e:
+        logger.error(f"Error in interact_with_firestore: {e}")
+        return json.dumps({"error": str(e)})
