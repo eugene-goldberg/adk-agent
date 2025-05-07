@@ -67,9 +67,6 @@ def create() -> None:
             extra_packages=["./customer_service", "./weather_agent"],
             display_name="customer-service-agent",
             description="A customer service agent for Cymbal Home & Garden with Firestore and Weather integrations that helps customers with product recommendations, bookings, and gardening advice.",
-            environment_variables={
-                "OPENWEATHERMAP_API_KEY": os.getenv("OPENWEATHERMAP_API_KEY", ""),
-            },
         )
         print(f"Created remote app: {remote_app.resource_name}")
     except Exception as e:

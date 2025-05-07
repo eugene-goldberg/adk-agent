@@ -518,12 +518,16 @@ async def get_weather(location: str, days: int = 3) -> str:
                     weather_data["customer_message"] = f"Currently {condition} and {temp}°C in {weather_data.get('location', {}).get('name', location)}"
                     
                     # Add activity recommendations based on weather
-                    if condition.lower() in ["rain", "rainy", "thunderstorms", "snowy"]:
+                    condition_lower = condition.lower()
+                    if any(term in condition_lower for term in ["rain", "shower", "thunder", "snow"]):
                         weather_data["gardening_tip"] = "Not a good day for planting. Consider indoor plant care or planning."
-                    elif condition.lower() in ["sunny", "clear"]:
+                    elif any(term in condition_lower for term in ["sunny", "clear", "fair"]):
                         weather_data["gardening_tip"] = "Perfect weather for planting or garden maintenance!"
-                    elif condition.lower() in ["partly cloudy", "cloudy"]:
+                    elif any(term in condition_lower for term in ["cloud", "overcast", "fog"]):
                         weather_data["gardening_tip"] = "Good conditions for most gardening activities."
+                    else:
+                        # Generic tip if condition doesn't match known patterns
+                        weather_data["gardening_tip"] = "Check local conditions before starting outdoor gardening work."
             
             # Re-serialize with the customer-friendly enhancements
             result = json.dumps(weather_data)

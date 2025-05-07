@@ -2,27 +2,17 @@
 Weather API Tool for the Weather Agent.
 
 This module provides a tool to get weather forecasts for locations
-using the OpenWeatherMap API.
+using the wttr.in API, which doesn't require authentication.
 """
 
 import json
-import os
 import requests
-from datetime import datetime
-from typing import Optional
-
-# OpenWeatherMap API URL and endpoints
-BASE_URL = "https://api.openweathermap.org/data/2.5"
-CURRENT_WEATHER_ENDPOINT = "/weather"
-FORECAST_ENDPOINT = "/forecast"
-GEO_ENDPOINT = "http://api.openweathermap.org/geo/1.0/direct"
-
-# Environment variable for API key
-API_KEY = os.environ.get("OPENWEATHERMAP_API_KEY")
+from datetime import datetime, timedelta
+from urllib.parse import quote
 
 def get_weather_forecast(location: str, days: int = 3) -> str:
     """
-    Get a weather forecast for a specific location using OpenWeatherMap API.
+    Get a weather forecast for a specific location using wttr.in API.
     
     Args:
         location (str): The city name to get weather for
@@ -31,48 +21,116 @@ def get_weather_forecast(location: str, days: int = 3) -> str:
     Returns:
         str: JSON string containing the weather forecast data
     """
-    # Check if API key is available
-    if not API_KEY:
-        return json.dumps({
-            "error": "OpenWeatherMap API key not found. Please set the OPENWEATHERMAP_API_KEY environment variable."
-        })
-    
     try:
-        # First, get the coordinates for the location
-        geo_coordinates = get_coordinates(location)
-        if not geo_coordinates:
+        # URL encode the location to handle spaces and special characters
+        encoded_location = quote(location)
+        
+        # Fetch data from wttr.in API (JSON format)
+        url = f"https://wttr.in/{encoded_location}?format=j1"
+        response = requests.get(url, timeout=10)
+        
+        if response.status_code != 200:
             return json.dumps({
-                "error": f"Location '{location}' not found. Please check the spelling or try a different location."
+                "error": f"Failed to get weather data: HTTP {response.status_code}"
+            })
+            
+        # Check if response is valid JSON - some locations return HTML instead of JSON
+        try:
+            if response.text.strip() and response.text[0] != '{':
+                # Not valid JSON, try a different approach
+                return json.dumps({
+                    "error": f"Location '{location}' not found or returned invalid data. Try a more specific location name."
+                })
+            # Empty response check
+            if not response.text.strip():
+                return json.dumps({
+                    "error": f"No data returned for location '{location}'. Try a different location."
+                })
+        except Exception:
+            return json.dumps({
+                "error": f"Invalid response for location '{location}'. Try a different location."
             })
         
-        lat, lon, country, city_name = geo_coordinates
+        # Parse the wttr.in response
+        wttr_data = response.json()
         
-        # Get current weather
-        current_weather = get_current_weather(lat, lon)
-        if not current_weather:
-            return json.dumps({
-                "error": f"Unable to get current weather data for '{location}'."
-            })
+        # Extract current conditions
+        current_condition = wttr_data.get("current_condition", [{}])[0]
         
-        # Get forecast
-        forecast_days = get_forecast(lat, lon, days)
-        if not forecast_days:
-            return json.dumps({
-                "error": f"Unable to get forecast data for '{location}'."
-            })
+        # Extract location information
+        location_info = wttr_data.get("nearest_area", [{}])[0]
+        country = location_info.get("country", [{}])[0].get("value", "")
+        city = location_info.get("areaName", [{}])[0].get("value", location)
         
-        # Combine data into our expected format
+        # Build our response format
         result = {
             "location": {
-                "name": city_name,
+                "name": city,
                 "country": country,
-                "coordinates": {"lat": lat, "lon": lon}
+                "coordinates": {
+                    "lat": location_info.get("latitude", ""),
+                    "lon": location_info.get("longitude", "")
+                }
             },
-            "current": current_weather,
+            "current": {
+                "temp_c": float(current_condition.get("temp_C", 0)),
+                "condition": current_condition.get("weatherDesc", [{}])[0].get("value", ""),
+                "humidity": int(current_condition.get("humidity", 0)),
+                "wind_kph": float(current_condition.get("windspeedKmph", 0)),
+                "feels_like": float(current_condition.get("FeelsLikeC", 0)),
+                "pressure": int(current_condition.get("pressure", 0)),
+                "uv_index": int(current_condition.get("uvIndex", 0))
+            },
             "forecast": {
-                "days": forecast_days
+                "days": []
             }
         }
+        
+        # Process forecast data for requested number of days
+        # wttr.in provides forecast in the "weather" array
+        weather_forecast = wttr_data.get("weather", [])
+        
+        # Limit to requested days and if there's less data than requested, use what's available
+        days_to_process = min(days, len(weather_forecast))
+        
+        for i in range(days_to_process):
+            day_data = weather_forecast[i]
+            date = day_data.get("date", "")
+            
+            # Find max and min temperatures
+            hourly = day_data.get("hourly", [])
+            if hourly:
+                temps = [float(h.get("tempC", 0)) for h in hourly]
+                min_temp = min(temps) if temps else None
+                max_temp = max(temps) if temps else None
+                
+                # Get the most common weather condition for the day
+                conditions = [h.get("weatherDesc", [{}])[0].get("value", "") for h in hourly]
+                # Simple mode function to get most common condition
+                if conditions:
+                    condition = max(set(conditions), key=conditions.count)
+                else:
+                    condition = ""
+                
+                # Calculate chance of rain (maximum chance across the day)
+                chance_of_rain = max([int(h.get("chanceofrain", 0)) for h in hourly])
+                
+                # Extract astronomy data for sunrise/sunset if available
+                astronomy = day_data.get("astronomy", [{}])
+                sunrise = astronomy[0].get("sunrise", "") if astronomy else None
+                sunset = astronomy[0].get("sunset", "") if astronomy else None
+                
+                daily_forecast = {
+                    "date": date,
+                    "temp_min_c": min_temp,
+                    "temp_max_c": max_temp,
+                    "condition": condition,
+                    "chance_of_rain": chance_of_rain,
+                    "sunrise": sunrise,
+                    "sunset": sunset
+                }
+                
+                result["forecast"]["days"].append(daily_forecast)
         
         return json.dumps(result, indent=2)
         
@@ -80,176 +138,3 @@ def get_weather_forecast(location: str, days: int = 3) -> str:
         return json.dumps({
             "error": f"An error occurred: {str(e)}"
         })
-
-def get_coordinates(location: str) -> Optional[tuple]:
-    """
-    Get the latitude and longitude for a location using OpenWeatherMap Geocoding API.
-    
-    Args:
-        location (str): City name to look up
-        
-    Returns:
-        Optional[tuple]: Tuple of (lat, lon, country, city_name) or None if not found
-    """
-    params = {
-        "q": location,
-        "limit": 1,
-        "appid": API_KEY
-    }
-    
-    response = requests.get(GEO_ENDPOINT, params=params)
-    
-    if response.status_code == 200:
-        data = response.json()
-        if data and len(data) > 0:
-            location_data = data[0]
-            return (
-                location_data.get("lat"),
-                location_data.get("lon"),
-                location_data.get("country"),
-                location_data.get("name")
-            )
-    
-    return None
-
-def get_current_weather(lat: float, lon: float) -> Optional[dict]:
-    """
-    Get current weather data for the specified coordinates.
-    
-    Args:
-        lat (float): Latitude
-        lon (float): Longitude
-        
-    Returns:
-        Optional[dict]: Dictionary with current weather or None on failure
-    """
-    params = {
-        "lat": lat,
-        "lon": lon,
-        "units": "metric",  # Use Celsius
-        "appid": API_KEY
-    }
-    
-    response = requests.get(f"{BASE_URL}{CURRENT_WEATHER_ENDPOINT}", params=params)
-    
-    if response.status_code == 200:
-        data = response.json()
-        
-        # Convert OpenWeatherMap format to our expected format
-        weather = {
-            "temp_c": data.get("main", {}).get("temp"),
-            "condition": data.get("weather", [{}])[0].get("main"),
-            "description": data.get("weather", [{}])[0].get("description"),
-            "humidity": data.get("main", {}).get("humidity"),
-            "wind_kph": convert_ms_to_kph(data.get("wind", {}).get("speed", 0)),
-            "pressure": data.get("main", {}).get("pressure"),
-            "feels_like": data.get("main", {}).get("feels_like")
-        }
-        
-        return weather
-    
-    return None
-
-def get_forecast(lat: float, lon: float, days: int) -> Optional[list]:
-    """
-    Get weather forecast for the specified coordinates.
-    
-    Args:
-        lat (float): Latitude
-        lon (float): Longitude
-        days (int): Number of days to forecast
-        
-    Returns:
-        Optional[list]: List of daily forecasts or None on failure
-    """
-    params = {
-        "lat": lat,
-        "lon": lon,
-        "units": "metric",  # Use Celsius
-        "appid": API_KEY
-    }
-    
-    response = requests.get(f"{BASE_URL}{FORECAST_ENDPOINT}", params=params)
-    
-    if response.status_code == 200:
-        data = response.json()
-        forecast_items = data.get("list", [])
-        
-        # OpenWeatherMap's free tier provides 5-day forecast in 3-hour steps
-        # We'll process this into daily forecasts
-        daily_forecasts = process_forecast(forecast_items, days)
-        
-        return daily_forecasts
-    
-    return None
-
-def process_forecast(forecast_items: list, days: int) -> list:
-    """
-    Process OpenWeatherMap forecast items into daily forecasts.
-    
-    Args:
-        forecast_items (list): List of forecast time points
-        days (int): Number of days to include
-        
-    Returns:
-        list: Processed daily forecasts
-    """
-    # Group forecasts by day
-    forecasts_by_day = {}
-    
-    for item in forecast_items:
-        timestamp = item.get("dt")
-        date = datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d")
-        
-        if date not in forecasts_by_day:
-            forecasts_by_day[date] = []
-            
-        forecasts_by_day[date].append(item)
-    
-    # Process each day's forecast
-    result = []
-    days_processed = 0
-    
-    for date, items in sorted(forecasts_by_day.items()):
-        if days_processed >= days:
-            break
-            
-        temps = [item.get("main", {}).get("temp") for item in items]
-        min_temp = min(temps) if temps else None
-        max_temp = max(temps) if temps else None
-        
-        # Get the most common weather condition for the day
-        conditions = [item.get("weather", [{}])[0].get("main") for item in items]
-        condition = max(set(conditions), key=conditions.count) if conditions else None
-        
-        # Calculate chance of rain (percentage of periods with rain)
-        rain_periods = sum(1 for item in items if "rain" in item)
-        chance_of_rain = int((rain_periods / len(items)) * 100) if items else 0
-        
-        daily_forecast = {
-            "date": date,
-            "temp_min_c": min_temp,
-            "temp_max_c": max_temp,
-            "condition": condition,
-            "chance_of_rain": chance_of_rain,
-            # We don't have sunrise/sunset in the forecast data
-            "sunrise": None,
-            "sunset": None
-        }
-        
-        result.append(daily_forecast)
-        days_processed += 1
-    
-    return result
-
-def convert_ms_to_kph(speed_ms: float) -> float:
-    """
-    Convert wind speed from meters per second to kilometers per hour.
-    
-    Args:
-        speed_ms (float): Speed in m/s
-        
-    Returns:
-        float: Speed in km/h
-    """
-    return round(speed_ms * 3.6, 1)  # 1 m/s = 3.6 km/h
