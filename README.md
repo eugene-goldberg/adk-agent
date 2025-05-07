@@ -6,6 +6,7 @@ A collection of Python-based agents using Google's Agent Development Kit (ADK) a
 
 1. **Short Bot** - An agent that shortens messages while maintaining their core meaning
 2. **Weather Agent** - An agent that provides weather forecasts for locations around the world
+3. **Customer Service Agent** - An agent that helps customers with product recommendations, order management, and service scheduling for Cymbal Home & Garden
 
 ## Prerequisites
 
@@ -154,6 +155,62 @@ poetry run deploy-weather-remote --list_sessions --resource_id=your-resource-id
 poetry run deploy-weather-remote --send --resource_id=your-resource-id --session_id=your-session-id --message="What will the weather be like in Tokyo for the next 5 days?"
 ```
 
+### Customer Service Agent
+
+#### Local Testing
+
+1. Create a new session:
+```bash
+poetry run deploy-cs-local --create_session
+```
+
+2. List all sessions:
+```bash
+poetry run deploy-cs-local --list_sessions
+```
+
+3. Get details of a specific session:
+```bash
+poetry run deploy-cs-local --get_session --session_id=your-session-id
+```
+
+4. Send a message to the customer service agent:
+```bash
+poetry run deploy-cs-local --send --session_id=your-session-id --message="I'm looking for a lawnmower recommendation."
+```
+
+5. Interactive testing:
+```bash
+python test_customer_service.py --mode=local --session_id=your-session-id --interactive
+```
+
+#### Remote Deployment
+
+1. Deploy the agent:
+```bash
+poetry run deploy-cs-remote --create
+```
+
+2. Create a session:
+```bash
+poetry run deploy-cs-remote --create_session --resource_id=your-resource-id
+```
+
+3. List sessions:
+```bash
+poetry run deploy-cs-remote --list_sessions --resource_id=your-resource-id
+```
+
+4. Send a message:
+```bash
+poetry run deploy-cs-remote --send --resource_id=your-resource-id --session_id=your-session-id --message="I'm looking for plants suitable for a desert climate."
+```
+
+5. Interactive testing:
+```bash
+python test_customer_service.py --mode=remote --resource_id=your-resource-id --session_id=your-session-id --interactive
+```
+
 ### Cleanup
 
 To delete any deployment:
@@ -181,12 +238,29 @@ adk-agent/
 │   └── tools/                # Weather Agent tools
 │       ├── __init__.py
 │       └── weather_api.py
+├── customer_service/         # Customer Service Agent package directory
+│   ├── __init__.py
+│   ├── agent.py              # Customer Service Agent implementation
+│   ├── config.py             # Configuration settings
+│   ├── prompts.py            # Customer Service Agent prompt templates
+│   ├── entities/             # Entity definitions
+│   │   ├── __init__.py
+│   │   └── customer.py       # Customer entity model
+│   ├── shared_libraries/     # Shared utilities
+│   │   ├── __init__.py
+│   │   └── callbacks.py      # Agent callbacks
+│   └── tools/                # Customer Service Agent tools
+│       ├── __init__.py
+│       └── tools.py          # Tool implementations
 ├── deployment/               # Deployment scripts
 │   ├── local.py              # Short Bot local testing script
 │   ├── remote.py             # Short Bot remote deployment script
 │   ├── weather_local.py      # Weather Agent local testing script
 │   ├── weather_remote.py     # Weather Agent remote deployment script
+│   ├── customer_service_local.py  # Customer Service Agent local testing script
+│   ├── customer_service_remote.py # Customer Service Agent remote deployment script
 │   └── cleanup.py            # Cleanup script for deployments
+├── test_customer_service.py  # Interactive testing script for Customer Service Agent
 ├── list_agents.sh            # Helper script to list agents
 ├── list_sessions.sh          # Helper script to list sessions
 ├── commands.md               # Documentation of Poetry commands

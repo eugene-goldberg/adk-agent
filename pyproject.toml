@@ -12,6 +12,7 @@ license = "Apache License 2.0"
 packages = [
     {include = "adk_short_bot"},
     {include = "weather_agent"},
+    {include = "customer_service"},
     {include = "deployment"}
 ]
 
@@ -20,6 +21,7 @@ python = ">=3.12"
 requests = "^2.31.0"
 google-adk = "^0.1.0"
 pydantic = "^2.11.3"
+pydantic-settings = "^2.8.1"
 python-dotenv = "^1.1.0"
 google-cloud-aiplatform = {extras = ["adk", "agent_engines"], version = "^1.42.1"}
 absl-py = "^2.1.0"
@@ -34,6 +36,10 @@ deploy-short-remote = "deployment.remote:main"
 # Weather agent scripts
 deploy-weather-local = "deployment.weather_local:main"
 deploy-weather-remote = "deployment.weather_remote:main"
+
+# Customer Service agent scripts
+deploy-cs-local = "deployment.customer_service_local:main"
+deploy-cs-remote = "deployment.customer_service_remote:main"
 
 # Shared scripts
 cleanup = "deployment.cleanup:cleanup_deployment"
