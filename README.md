@@ -48,6 +48,9 @@ GOOGLE_GENAI_USE_VERTEXAI=TRUE
 GOOGLE_CLOUD_PROJECT=your-project-id
 GOOGLE_CLOUD_LOCATION=your-location  # e.g., us-central1
 GOOGLE_CLOUD_STAGING_BUCKET=gs://your-bucket-name
+
+# OpenWeatherMap API key (for Weather Agent)
+OPENWEATHERMAP_API_KEY=your-api-key
 ```
 
 2. Set up Google Cloud authentication:
@@ -60,6 +63,13 @@ gcloud config set project your-project-id
 ```bash
 gcloud services enable aiplatform.googleapis.com
 ```
+
+4. Get an OpenWeatherMap API key:
+   - Register for a free account at [OpenWeatherMap](https://openweathermap.org/)
+   - Navigate to the API Keys section in your account
+   - Create a new API key
+   - Add the key to your `.env` file as `OPENWEATHERMAP_API_KEY`
+   - Note: The Weather Agent will use mock data if no API key is provided
 
 ## Usage
 
@@ -111,6 +121,16 @@ poetry run deploy-short-remote --send --resource_id=your-resource-id --session_i
 
 ### Weather Agent
 
+The Weather Agent provides accurate weather forecasts for locations around the world using the OpenWeatherMap API.
+
+#### Features
+
+- Current weather conditions including temperature, humidity, and wind speed
+- Multi-day forecasts with high/low temperatures
+- Detailed weather descriptions and recommendations
+- Support for cities worldwide
+- Real weather data with OpenWeatherMap API integration (uses mock data as a fallback)
+
 #### Local Testing
 
 1. Create a new session:
@@ -131,6 +151,11 @@ poetry run deploy-weather-local --get_session --session_id=your-session-id
 4. Send a message for weather information:
 ```bash
 poetry run deploy-weather-local --send --session_id=your-session-id --message="What's the weather like in London today?"
+```
+
+5. Ask for multiple days forecast:
+```bash
+poetry run deploy-weather-local --send --session_id=your-session-id --message="What will the weather be like in Tokyo for the next 5 days?"
 ```
 
 #### Remote Deployment
@@ -157,6 +182,20 @@ poetry run deploy-weather-remote --send --resource_id=your-resource-id --session
 
 ### Customer Service Agent
 
+The Customer Service Agent helps customers with product recommendations, order management, and service scheduling. It now includes Firestore integration for managing customer bookings and records.
+
+#### Features
+
+- Product identification and recommendations
+- Order management and cart modifications
+- Appointment scheduling
+- Discount approvals
+- Firestore database integration for:
+  - Creating and managing bookings
+  - Retrieving customer records
+  - Tracking service appointments
+  - Storing customer preferences
+
 #### Local Testing
 
 1. Create a new session:
@@ -179,7 +218,12 @@ poetry run deploy-cs-local --get_session --session_id=your-session-id
 poetry run deploy-cs-local --send --session_id=your-session-id --message="I'm looking for a lawnmower recommendation."
 ```
 
-5. Interactive testing:
+5. Test Firestore integration:
+```bash
+poetry run deploy-cs-local --send --session_id=your-session-id --message="Show me all my bookings from the database."
+```
+
+6. Interactive testing:
 ```bash
 python test_customer_service.py --mode=local --session_id=your-session-id --interactive
 ```
@@ -206,9 +250,29 @@ poetry run deploy-cs-remote --list_sessions --resource_id=your-resource-id
 poetry run deploy-cs-remote --send --resource_id=your-resource-id --session_id=your-session-id --message="I'm looking for plants suitable for a desert climate."
 ```
 
-5. Interactive testing:
+5. Test Firestore integration:
+```bash
+poetry run deploy-cs-remote --send --resource_id=your-resource-id --session_id=your-session-id --message="Create a new booking for me for planting service on May 25th."
+```
+
+6. Interactive testing:
 ```bash
 python test_customer_service.py --mode=remote --resource_id=your-resource-id --session_id=your-session-id --interactive
+```
+
+#### Firestore Testing
+
+The Firestore integration can be directly tested using the provided test scripts:
+
+```bash
+# Test connection to Firestore
+python customer_service/test_firestore_agent.py
+
+# Test live Firestore operations (CRUD)
+python customer_service/test_firestore_live.py
+
+# Test Firestore integration with the Customer Service agent
+python customer_service/test_firestore_direct.py
 ```
 
 ### Cleanup
@@ -246,12 +310,20 @@ adk-agent/
 │   ├── entities/             # Entity definitions
 │   │   ├── __init__.py
 │   │   └── customer.py       # Customer entity model
+│   ├── firestore_agent/      # Firestore integration
+│   │   ├── __init__.py
+│   │   ├── agent.py          # Firestore Agent implementation
+│   │   ├── prompts.py        # Firestore Agent prompts
+│   │   └── tools.py          # Firestore database operations
 │   ├── shared_libraries/     # Shared utilities
 │   │   ├── __init__.py
 │   │   └── callbacks.py      # Agent callbacks
-│   └── tools/                # Customer Service Agent tools
-│       ├── __init__.py
-│       └── tools.py          # Tool implementations
+│   ├── tools/                # Customer Service Agent tools
+│   │   ├── __init__.py
+│   │   └── tools.py          # Tool implementations
+│   ├── test_firestore_agent.py # Tests for Firestore integration
+│   ├── test_firestore_live.py  # Live testing of Firestore operations
+│   └── test_firestore_direct.py # Direct testing of Firestore integration
 ├── deployment/               # Deployment scripts
 │   ├── local.py              # Short Bot local testing script
 │   ├── remote.py             # Short Bot remote deployment script

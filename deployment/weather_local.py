@@ -56,6 +56,15 @@ def main():
         location=location,
     )
 
+    # Check if OpenWeatherMap API key is available
+    openweathermap_api_key = os.getenv("OPENWEATHERMAP_API_KEY")
+    if not openweathermap_api_key:
+        print("Warning: OPENWEATHERMAP_API_KEY environment variable is not set.")
+        print("The weather agent will not be able to fetch real weather data.")
+        print("Please get an API key from https://openweathermap.org/ and set it in your .env file.")
+    else:
+        print("OpenWeatherMap API key found.")
+        
     # Create the app
     print("Creating local app instance...")
     app = reasoning_engines.AdkApp(

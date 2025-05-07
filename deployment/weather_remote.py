@@ -58,10 +58,14 @@ def create() -> None:
         agent_engine=app,
         requirements=[
             "google-cloud-aiplatform[adk,agent_engines]",
+            "requests>=2.31.0",
         ],
         extra_packages=["./weather_agent"],
         display_name="weather-forecast-agent",
         description="A weather forecasting agent that provides current conditions and forecasts for locations around the world",
+        environment_variables={
+            "OPENWEATHERMAP_API_KEY": os.getenv("OPENWEATHERMAP_API_KEY", ""),
+        },
     )
     print(f"Created remote app: {remote_app.resource_name}")
 
