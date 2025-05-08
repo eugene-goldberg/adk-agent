@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Service Agent Chat</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header>
+        <h1>Cymbal Home & Garden</h1>
+        <nav>
+            <a href="/" class="active">Home</a>
+            <a href="/agent-testing">Agent Test</a>
+            <a href="/agent-discovery">Agent Discovery</a>
+        </nav>
+    </header>
+    
+    <div class="container">
+        <div class="page-header">
+            <h2>Customer Service Chat</h2>
+        </div>
+        
+        <div class="chat-container">
+            <div class="chat-history" id="chat-history">
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="message {{ 'user-message' if message.author == 'user' else 'bot-message' }}">
+                            {% if message.author == 'user' %}
+                                <div class="avatar user-avatar">You</div>
+                            {% else %}
+                                <div class="avatar bot-avatar">🤖</div>
+                            {% endif %}
+                            <div class="message-content">{{ message.content|safe }}</div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="message bot-message">
+                        <div class="avatar bot-avatar">🤖</div>
+                        <div class="message-content">Welcome to Cymbal Home & Garden! How can I help you today?</div>
+                    </div>
+                {% endif %}
+            </div>
+            
+            <div class="message-form">
+                <div class="input-container">
+                    <input type="text" id="message-input" placeholder="Type your message here..." required>
+                    <button id="send-button" class="send-button">Send</button>
+                </div>
+            </div>
+            
+            <div class="session-info">
+                <p>Session ID: <span id="session-id">{{ session_id }}</span></p>
+                <button id="new-session-button" class="new-session-button">New Session</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="loading-indicator" class="loading-indicator">
+        <div class="spinner"></div>
+    </div>
+
+    <script>
+        // DOM elements
+        const chatHistory = document.getElementById('chat-history');
+        const messageInput = document.getElementById('message-input');
+        const sendButton = document.getElementById('send-button');
+        const newSessionButton = document.getElementById('new-session-button');
+        const sessionIdElement = document.getElementById('session-id');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        
+        // Current session ID
+        let currentSessionId = '{{ session_id }}';
+        
+        // Function to add a message to the chat
+        function addMessageToChat(message, author) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${author === 'user' ? 'user-message' : 'bot-message'}`;
+            
+            const avatarDiv = document.createElement('div');
+            avatarDiv.className = `avatar ${author === 'user' ? 'user-avatar' : 'bot-avatar'}`;
+            avatarDiv.textContent = author === 'user' ? 'You' : '🤖';
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            contentDiv.innerHTML = message;
+            
+            messageDiv.appendChild(avatarDiv);
+            messageDiv.appendChild(contentDiv);
+            
+            chatHistory.appendChild(messageDiv);
+            scrollToBottom();
+        }
+        
+        // Function to scroll to bottom of chat
+        function scrollToBottom() {
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+        }
+        
+        // Show loading indicator
+        function showLoading() {
+            loadingIndicator.classList.add('active');
+        }
+        
+        // Hide loading indicator
+        function hideLoading() {
+            loadingIndicator.classList.remove('active');
+        }
+        
+        // Function to send a message
+        async function sendMessage(message) {
+            if (!message.trim()) return;
+            
+            // Add user message to chat
+            addMessageToChat(message, 'user');
+            
+            // Clear input
+            messageInput.value = '';
+            
+            // Show loading indicator
+            showLoading();
+            
+            try {
+                // Send message to API
+                const response = await fetch(`/api/sessions/${currentSessionId}/messages`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ message })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Add agent response to chat
+                    addMessageToChat(data.response, 'agent');
+                } else {
+                    // Show error
+                    addMessageToChat(`Error: ${data.error || 'Something went wrong'}`, 'agent');
+                }
+            } catch (error) {
+                console.error('Error sending message:', error);
+                addMessageToChat('Sorry, there was an error communicating with the agent.', 'agent');
+            } finally {
+                // Hide loading indicator
+                hideLoading();
+            }
+        }
+        
+        // Function to create a new session
+        async function createNewSession() {
+            // Show loading indicator
+            showLoading();
+            
+            try {
+                // Create new session via API
+                const response = await fetch('/api/sessions', {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Update session ID
+                    currentSessionId = data.session_id;
+                    sessionIdElement.textContent = currentSessionId;
+                    
+                    // Clear chat history
+                    chatHistory.innerHTML = '';
+                    
+                    // Add welcome message
+                    addMessageToChat('Welcome to Cymbal Home & Garden! How can I help you today?', 'agent');
+                } else {
+                    console.error('Error creating session:', data.error);
+                    alert('Failed to create a new session. Please try again.');
+                }
+            } catch (error) {
+                console.error('Error creating session:', error);
+                alert('Failed to create a new session. Please try again.');
+            } finally {
+                // Hide loading indicator
+                hideLoading();
+            }
+        }
+        
+        // Event listener for send button
+        sendButton.addEventListener('click', function() {
+            sendMessage(messageInput.value);
+        });
+        
+        // Event listener for Enter key in input
+        messageInput.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                sendMessage(messageInput.value);
+            }
+        });
+        
+        // Event listener for new session button
+        newSessionButton.addEventListener('click', createNewSession);
+        
+        // Auto-scroll to bottom of chat history on load
+        window.onload = function() {
+            scrollToBottom();
+        };
+    </script>
+</body>
+</html>

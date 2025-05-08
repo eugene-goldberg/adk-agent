@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Discovery and Testing</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .section {
+            margin-bottom: 32px;
+        }
+        .sub-card {
+            border: 1px solid #eee;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 12px;
+            background-color: #f9f9f9;
+        }
+        .btn {
+            padding: 8px 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .btn:hover {
+            background-color: #45a049;
+        }
+        .btn.primary {
+            background-color: #2196F3;
+        }
+        .btn.primary:hover {
+            background-color: #0b7dda;
+        }
+        .response {
+            background-color: #f5f5f5;
+            padding: 12px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            overflow-x: auto;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 10px;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .feature-checkbox {
+            margin-right: 8px;
+        }
+        .hidden {
+            display: none;
+        }
+        .api-controls {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+        @media (min-width: 768px) {
+            .api-controls {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        @media (min-width: 1200px) {
+            .api-controls {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+        input[type="text"], textarea {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 100%;
+        }
+        code {
+            background-color: #f0f0f0;
+            padding: 2px 4px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        .checkbox-group label {
+            background-color: #f0f0f0;
+            padding: 4px 8px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Agent Discovery and Testing</h1>
+        <nav>
+            <a href="/">Home</a>
+            <a href="/agent-testing">Agent Test</a>
+            <a href="/agent-discovery" class="active">Agent Discovery</a>
+        </nav>
+    </header>
+
+    <main>
+        <div class="section">
+            <h2>API Endpoints</h2>
+            <p>Test the API endpoints directly using these buttons. Results will appear below each section.</p>
+            
+            <div class="api-controls">
+                <div class="card">
+                    <h3>1. Discover Agents</h3>
+                    <p><code>GET /api/discovery/discover</code></p>
+                    <p>Find available agents deployed on Vertex AI.</p>
+                    <button id="apiDiscoverBtn" class="btn primary">Test Discover Endpoint</button>
+                    <div id="apiDiscoverResult" class="response hidden"></div>
+                </div>
+                
+                <div class="card">
+                    <h3>2. Create Session</h3>
+                    <p><code>POST /api/discovery/create_session</code></p>
+                    <div>
+                        <label for="apiResourceId">Resource ID:</label>
+                        <input type="text" id="apiResourceId" placeholder="1818126039411326976" value="1818126039411326976">
+                    </div>
+                    <div style="margin-top: 8px;">
+                        <label for="apiSessionName">Session Name:</label>
+                        <input type="text" id="apiSessionName" placeholder="API Test Session" value="API Test Session">
+                    </div>
+                    <button id="apiCreateSessionBtn" class="btn primary" style="margin-top: 8px;">Test Create Session Endpoint</button>
+                    <div id="apiCreateSessionResult" class="response hidden"></div>
+                </div>
+                
+                <div class="card">
+                    <h3>3. List Sessions</h3>
+                    <p><code>GET /api/discovery/sessions</code></p>
+                    <p>List all saved sessions.</p>
+                    <button id="apiListSessionsBtn" class="btn primary">Test List Sessions Endpoint</button>
+                    <div id="apiListSessionsResult" class="response hidden"></div>
+                </div>
+                
+                <div class="card">
+                    <h3>4. Send Message</h3>
+                    <p><code>POST /api/discovery/send_message</code></p>
+                    <div>
+                        <label for="apiSessionUuid">Session UUID:</label>
+                        <input type="text" id="apiSessionUuid" placeholder="UUID from create session">
+                    </div>
+                    <div style="margin-top: 8px;">
+                        <label for="apiMessage">Message:</label>
+                        <textarea id="apiMessage" placeholder="Type a message to send to the agent" rows="2" style="width: 100%;">Hello, can you help me with gardening advice?</textarea>
+                    </div>
+                    <button id="apiSendMessageBtn" class="btn primary" style="margin-top: 8px;">Test Send Message Endpoint</button>
+                    <div id="apiSendMessageResult" class="response hidden"></div>
+                </div>
+                
+                <div class="card">
+                    <h3>5. Test Features</h3>
+                    <p><code>POST /api/discovery/test_features</code></p>
+                    <div>
+                        <label for="apiTestSessionUuid">Session UUID:</label>
+                        <input type="text" id="apiTestSessionUuid" placeholder="UUID from create session">
+                    </div>
+                    <div style="margin-top: 8px;">
+                        <label>Features to Test:</label>
+                        <div class="checkbox-group">
+                            <label><input type="checkbox" name="apiFeature" value="basic" checked> Basic</label>
+                            <label><input type="checkbox" name="apiFeature" value="weather" checked> Weather</label>
+                            <label><input type="checkbox" name="apiFeature" value="cart"> Cart</label>
+                            <label><input type="checkbox" name="apiFeature" value="booking"> Booking</label>
+                            <label><input type="checkbox" name="apiFeature" value="firestore_store"> Firestore Store</label>
+                        </div>
+                    </div>
+                    <button id="apiTestFeaturesBtn" class="btn primary" style="margin-top: 8px;">Test Features Endpoint</button>
+                    <div id="apiTestFeaturesResult" class="response hidden"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Interactive UI</h2>
+            <p>Use the interactive interface below to work with agents.</p>
+            
+            <div class="card">
+                <h3>Discover Agents</h3>
+                <p>Find available agents deployed on Vertex AI.</p>
+                <button id="discoverBtn" class="btn">Discover Agents</button>
+                
+                <div id="agentsContainer" style="margin-top: 16px;">
+                    <div id="agentsLoader" class="hidden">Loading agents...</div>
+                    <div id="agentsResponse" class="response hidden"></div>
+                    <div id="agentsList" class="hidden">
+                        <h3>Available Agents</h3>
+                        <table id="agentsTable">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>ID</th>
+                                    <th>Created</th>
+                                    <th>Updated</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Manage Sessions</h3>
+                <p>Create new sessions or view existing ones.</p>
+                
+                <div class="sub-card">
+                    <h4>Create New Session</h4>
+                    <p>Create a new session with the selected agent.</p>
+                    <div>
+                        <label for="sessionName">Session Name (optional):</label>
+                        <input type="text" id="sessionName" placeholder="My Session">
+                    </div>
+                    <div style="margin-top: 8px;">
+                        <label for="resourceId">Resource ID:</label>
+                        <input type="text" id="resourceId" placeholder="Agent Resource ID">
+                    </div>
+                    <button id="createSessionBtn" class="btn" style="margin-top: 8px;">Create Session</button>
+                    <div id="createSessionResponse" class="response hidden" style="margin-top: 8px;"></div>
+                </div>
+                
+                <div class="sub-card">
+                    <h4>Available Sessions</h4>
+                    <button id="listSessionsBtn" class="btn">List Sessions</button>
+                    <div id="sessionsLoader" class="hidden" style="margin-top: 8px;">Loading sessions...</div>
+                    <div id="sessionsList" class="hidden" style="margin-top: 8px;">
+                        <table id="sessionsTable">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Created</th>
+                                    <th>Last Used</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Chat with Agent</h3>
+                <div>
+                    <div id="sessionInfo" class="hidden">
+                        <p>Session: <span id="currentSessionName"></span></p>
+                        <p>Session ID: <span id="currentSessionId"></span></p>
+                    </div>
+                    <div id="noSessionSelected">
+                        <p>No session selected. Please create a new session or select an existing one.</p>
+                    </div>
+                    <div id="messageInputContainer" class="hidden">
+                        <textarea id="messageInput" placeholder="Type your message..." rows="3" style="width: 100%; margin-top: 8px;"></textarea>
+                        <button id="sendMessageBtn" class="btn" style="margin-top: 8px;">Send Message</button>
+                    </div>
+                    <div id="messageResponse" class="response hidden" style="margin-top: 16px;"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Feature Testing</h3>
+                <div id="featureTestSessionInfo" class="hidden">
+                    <p>Testing with Session: <span id="testSessionName"></span></p>
+                </div>
+                <div id="noTestSessionSelected">
+                    <p>No session selected for testing. Please create a new session or select an existing one.</p>
+                </div>
+                <div id="featureSelectionContainer" class="hidden">
+                    <h4>Select Features to Test</h4>
+                    <div>
+                        <input type="checkbox" id="basicFeature" value="basic" class="feature-checkbox">
+                        <label for="basicFeature">Basic Plant Recommendations</label>
+                    </div>
+                    <div>
+                        <input type="checkbox" id="weatherFeature" value="weather" class="feature-checkbox">
+                        <label for="weatherFeature">Weather Integration</label>
+                    </div>
+                    <div>
+                        <input type="checkbox" id="cartFeature" value="cart" class="feature-checkbox">
+                        <label for="cartFeature">Shopping Cart</label>
+                    </div>
+                    <div>
+                        <input type="checkbox" id="bookingFeature" value="booking" class="feature-checkbox">
+                        <label for="bookingFeature">Booking Functionality</label>
+                    </div>
+                    <div>
+                        <input type="checkbox" id="bookingConfirmFeature" value="booking_confirm" class="feature-checkbox">
+                        <label for="bookingConfirmFeature">Booking Confirmation</label>
+                    </div>
+                    <div>
+                        <input type="checkbox" id="firestoreStoreFeature" value="firestore_store" class="feature-checkbox">
+                        <label for="firestoreStoreFeature">Firestore Storage</label>
+                    </div>
+                    <div>
+                        <input type="checkbox" id="firestoreRetrieveFeature" value="firestore_retrieve" class="feature-checkbox">
+                        <label for="firestoreRetrieveFeature">Firestore Retrieval</label>
+                    </div>
+                    <div>
+                        <input type="checkbox" id="firestoreDetailFeature" value="firestore_detail" class="feature-checkbox">
+                        <label for="firestoreDetailFeature">Firestore Detailed Query</label>
+                    </div>
+                    <button id="runTestsBtn" class="btn" style="margin-top: 16px;">Run Tests</button>
+                </div>
+                <div id="testResults" class="hidden" style="margin-top: 16px;">
+                    <h4>Test Results</h4>
+                    <div id="resultsContainer"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Current session state
+        let currentSession = null;
+        
+        // Event Listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            // API Endpoint testing
+            document.getElementById('apiDiscoverBtn').addEventListener('click', testApiDiscover);
+            document.getElementById('apiCreateSessionBtn').addEventListener('click', testApiCreateSession);
+            document.getElementById('apiListSessionsBtn').addEventListener('click', testApiListSessions);
+            document.getElementById('apiSendMessageBtn').addEventListener('click', testApiSendMessage);
+            document.getElementById('apiTestFeaturesBtn').addEventListener('click', testApiTestFeatures);
+            
+            // Interactive UI
+            document.getElementById('discoverBtn').addEventListener('click', discoverAgents);
+            document.getElementById('createSessionBtn').addEventListener('click', createSession);
+            document.getElementById('listSessionsBtn').addEventListener('click', listSessions);
+            document.getElementById('sendMessageBtn').addEventListener('click', sendMessage);
+            document.getElementById('runTestsBtn').addEventListener('click', runFeatureTests);
+            
+            // Initial load of sessions
+            listSessions();
+        });
+        
+        // API Endpoint Testing Functions
+        async function testApiDiscover() {
+            const resultElement = document.getElementById('apiDiscoverResult');
+            resultElement.textContent = 'Loading...';
+            resultElement.classList.remove('hidden');
+            
+            try {
+                const response = await fetch('/api/discovery/discover');
+                const data = await response.json();
+                resultElement.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                resultElement.textContent = `Error: ${error.message}`;
+            }
+        }
+        
+        async function testApiCreateSession() {
+            const resultElement = document.getElementById('apiCreateSessionResult');
+            resultElement.textContent = 'Creating session...';
+            resultElement.classList.remove('hidden');
+            
+            const resourceId = document.getElementById('apiResourceId').value;
+            const sessionName = document.getElementById('apiSessionName').value;
+            
+            try {
+                const response = await fetch('/api/discovery/create_session', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        resource_id: resourceId,
+                        name: sessionName
+                    })
+                });
+                
+                const data = await response.json();
+                resultElement.textContent = JSON.stringify(data, null, 2);
+                
+                // If session creation was successful, update the session UUID inputs
+                if (data.success && data.uuid) {
+                    document.getElementById('apiSessionUuid').value = data.uuid;
+                    document.getElementById('apiTestSessionUuid').value = data.uuid;
+                }
+            } catch (error) {
+                resultElement.textContent = `Error: ${error.message}`;
+            }
+        }
+        
+        async function testApiListSessions() {
+            const resultElement = document.getElementById('apiListSessionsResult');
+            resultElement.textContent = 'Loading sessions...';
+            resultElement.classList.remove('hidden');
+            
+            try {
+                const response = await fetch('/api/discovery/sessions');
+                const data = await response.json();
+                resultElement.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                resultElement.textContent = `Error: ${error.message}`;
+            }
+        }
+        
+        async function testApiSendMessage() {
+            const resultElement = document.getElementById('apiSendMessageResult');
+            resultElement.textContent = 'Sending message...';
+            resultElement.classList.remove('hidden');
+            
+            const sessionUuid = document.getElementById('apiSessionUuid').value;
+            const message = document.getElementById('apiMessage').value;
+            
+            if (!sessionUuid) {
+                resultElement.textContent = 'Error: Please enter a session UUID';
+                return;
+            }
+            
+            if (!message) {
+                resultElement.textContent = 'Error: Please enter a message';
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/discovery/send_message', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        session_uuid: sessionUuid,
+                        message: message
+                    })
+                });
+                
+                const data = await response.json();
+                resultElement.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                resultElement.textContent = `Error: ${error.message}`;
+            }
+        }
+        
+        async function testApiTestFeatures() {
+            const resultElement = document.getElementById('apiTestFeaturesResult');
+            resultElement.textContent = 'Running tests...';
+            resultElement.classList.remove('hidden');
+            
+            const sessionUuid = document.getElementById('apiTestSessionUuid').value;
+            const features = Array.from(document.querySelectorAll('input[name="apiFeature"]:checked'))
+                .map(checkbox => checkbox.value);
+            
+            if (!sessionUuid) {
+                resultElement.textContent = 'Error: Please enter a session UUID';
+                return;
+            }
+            
+            if (features.length === 0) {
+                resultElement.textContent = 'Error: Please select at least one feature to test';
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/discovery/test_features', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        session_uuid: sessionUuid,
+                        features: features
+                    })
+                });
+                
+                const data = await response.json();
+                resultElement.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                resultElement.textContent = `Error: ${error.message}`;
+            }
+        }
+        
+        // Agent Discovery
+        async function discoverAgents() {
+            const agentsLoader = document.getElementById('agentsLoader');
+            const agentsResponse = document.getElementById('agentsResponse');
+            const agentsList = document.getElementById('agentsList');
+            
+            try {
+                agentsLoader.classList.remove('hidden');
+                agentsResponse.classList.add('hidden');
+                agentsList.classList.add('hidden');
+                
+                const response = await fetch('/api/discovery/discover');
+                const data = await response.json();
+                
+                agentsResponse.textContent = JSON.stringify(data, null, 2);
+                
+                if (data.success && data.agents && data.agents.length > 0) {
+                    const tableBody = document.querySelector('#agentsTable tbody');
+                    tableBody.innerHTML = '';
+                    
+                    data.agents.forEach(agent => {
+                        const row = document.createElement('tr');
+                        
+                        // Display Name
+                        const nameCell = document.createElement('td');
+                        nameCell.textContent = agent.display_name;
+                        row.appendChild(nameCell);
+                        
+                        // ID
+                        const idCell = document.createElement('td');
+                        idCell.textContent = agent.id;
+                        row.appendChild(idCell);
+                        
+                        // Created
+                        const createdCell = document.createElement('td');
+                        createdCell.textContent = agent.created;
+                        row.appendChild(createdCell);
+                        
+                        // Updated
+                        const updatedCell = document.createElement('td');
+                        updatedCell.textContent = agent.updated;
+                        row.appendChild(updatedCell);
+                        
+                        // Actions
+                        const actionsCell = document.createElement('td');
+                        const createSessionBtn = document.createElement('button');
+                        createSessionBtn.textContent = 'Create Session';
+                        createSessionBtn.className = 'btn';
+                        createSessionBtn.addEventListener('click', () => {
+                            document.getElementById('resourceId').value = agent.resource_id;
+                            document.getElementById('sessionName').value = `Session with ${agent.display_name}`;
+                            document.getElementById('createSessionBtn').click();
+                        });
+                        actionsCell.appendChild(createSessionBtn);
+                        row.appendChild(actionsCell);
+                        
+                        tableBody.appendChild(row);
+                    });
+                    
+                    agentsList.classList.remove('hidden');
+                }
+                
+                agentsResponse.classList.remove('hidden');
+            } catch (error) {
+                console.error('Error discovering agents:', error);
+                agentsResponse.textContent = `Error: ${error.message}`;
+                agentsResponse.classList.remove('hidden');
+            } finally {
+                agentsLoader.classList.add('hidden');
+            }
+        }
+        
+        // Session Management
+        async function createSession() {
+            const responseElement = document.getElementById('createSessionResponse');
+            const resourceId = document.getElementById('resourceId').value;
+            const sessionName = document.getElementById('sessionName').value;
+            
+            try {
+                responseElement.textContent = 'Creating session...';
+                responseElement.classList.remove('hidden');
+                
+                const response = await fetch('/api/discovery/create_session', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        resource_id: resourceId,
+                        name: sessionName || undefined
+                    })
+                });
+                
+                const data = await response.json();
+                responseElement.textContent = JSON.stringify(data, null, 2);
+                
+                if (data.success) {
+                    // Update current session
+                    setCurrentSession({
+                        uuid: data.uuid,
+                        name: data.name,
+                        session_id: data.session_id,
+                        resource_id: data.resource_id
+                    });
+                    
+                    // Refresh sessions list
+                    listSessions();
+                }
+            } catch (error) {
+                console.error('Error creating session:', error);
+                responseElement.textContent = `Error: ${error.message}`;
+            }
+        }
+        
+        async function listSessions() {
+            const sessionsLoader = document.getElementById('sessionsLoader');
+            const sessionsList = document.getElementById('sessionsList');
+            
+            try {
+                sessionsLoader.classList.remove('hidden');
+                sessionsList.classList.add('hidden');
+                
+                const response = await fetch('/api/discovery/sessions');
+                const data = await response.json();
+                
+                if (data.success && data.sessions && data.sessions.length > 0) {
+                    const tableBody = document.querySelector('#sessionsTable tbody');
+                    tableBody.innerHTML = '';
+                    
+                    data.sessions.forEach(session => {
+                        const row = document.createElement('tr');
+                        
+                        // Name
+                        const nameCell = document.createElement('td');
+                        nameCell.textContent = session.name;
+                        row.appendChild(nameCell);
+                        
+                        // Created
+                        const createdCell = document.createElement('td');
+                        const createdDate = new Date(session.created);
+                        createdCell.textContent = createdDate.toLocaleString();
+                        row.appendChild(createdCell);
+                        
+                        // Last Used
+                        const lastUsedCell = document.createElement('td');
+                        const lastUsedDate = new Date(session.last_used * 1000);
+                        lastUsedCell.textContent = lastUsedDate.toLocaleString();
+                        row.appendChild(lastUsedCell);
+                        
+                        // Actions
+                        const actionsCell = document.createElement('td');
+                        
+                        const selectBtn = document.createElement('button');
+                        selectBtn.textContent = 'Select';
+                        selectBtn.className = 'btn';
+                        selectBtn.style.marginRight = '8px';
+                        selectBtn.addEventListener('click', () => {
+                            setCurrentSession(session);
+                        });
+                        actionsCell.appendChild(selectBtn);
+                        
+                        const testBtn = document.createElement('button');
+                        testBtn.textContent = 'Test Features';
+                        testBtn.className = 'btn';
+                        testBtn.addEventListener('click', () => {
+                            setTestSession(session);
+                            document.getElementById('featureTestSessionInfo').scrollIntoView({ behavior: 'smooth' });
+                        });
+                        actionsCell.appendChild(testBtn);
+                        
+                        row.appendChild(actionsCell);
+                        
+                        tableBody.appendChild(row);
+                    });
+                    
+                    sessionsList.classList.remove('hidden');
+                } else {
+                    const tableBody = document.querySelector('#sessionsTable tbody');
+                    tableBody.innerHTML = '<tr><td colspan="4">No sessions found</td></tr>';
+                    sessionsList.classList.remove('hidden');
+                }
+            } catch (error) {
+                console.error('Error listing sessions:', error);
+            } finally {
+                sessionsLoader.classList.add('hidden');
+            }
+        }
+        
+        // Set current session for chat
+        function setCurrentSession(session) {
+            currentSession = session;
+            
+            const sessionInfo = document.getElementById('sessionInfo');
+            const noSessionSelected = document.getElementById('noSessionSelected');
+            const messageInputContainer = document.getElementById('messageInputContainer');
+            const currentSessionName = document.getElementById('currentSessionName');
+            const currentSessionId = document.getElementById('currentSessionId');
+            
+            if (session) {
+                currentSessionName.textContent = session.name;
+                currentSessionId.textContent = session.session_id;
+                
+                sessionInfo.classList.remove('hidden');
+                messageInputContainer.classList.remove('hidden');
+                noSessionSelected.classList.add('hidden');
+                
+                // Also set for testing
+                setTestSession(session);
+            } else {
+                sessionInfo.classList.add('hidden');
+                messageInputContainer.classList.add('hidden');
+                noSessionSelected.classList.remove('hidden');
+            }
+        }
+        
+        // Set session for feature testing
+        function setTestSession(session) {
+            const featureTestSessionInfo = document.getElementById('featureTestSessionInfo');
+            const noTestSessionSelected = document.getElementById('noTestSessionSelected');
+            const featureSelectionContainer = document.getElementById('featureSelectionContainer');
+            const testSessionName = document.getElementById('testSessionName');
+            
+            if (session) {
+                testSessionName.textContent = session.name;
+                
+                featureTestSessionInfo.classList.remove('hidden');
+                featureSelectionContainer.classList.remove('hidden');
+                noTestSessionSelected.classList.add('hidden');
+                
+                // Store session in data attribute
+                featureTestSessionInfo.dataset.uuid = session.uuid;
+                featureTestSessionInfo.dataset.sessionId = session.session_id;
+                featureTestSessionInfo.dataset.resourceId = session.resource_id;
+            } else {
+                featureTestSessionInfo.classList.add('hidden');
+                featureSelectionContainer.classList.add('hidden');
+                noTestSessionSelected.classList.remove('hidden');
+            }
+        }
+        
+        // Send message to agent
+        async function sendMessage() {
+            if (!currentSession) {
+                alert('No session selected');
+                return;
+            }
+            
+            const messageInput = document.getElementById('messageInput');
+            const messageResponse = document.getElementById('messageResponse');
+            const message = messageInput.value.trim();
+            
+            if (!message) {
+                alert('Please enter a message');
+                return;
+            }
+            
+            try {
+                messageResponse.textContent = 'Sending message...';
+                messageResponse.classList.remove('hidden');
+                
+                const response = await fetch('/api/discovery/send_message', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        session_uuid: currentSession.uuid,
+                        message: message
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    messageResponse.textContent = data.response;
+                    
+                    // Clear the input
+                    messageInput.value = '';
+                } else {
+                    messageResponse.textContent = `Error: ${data.error}`;
+                }
+            } catch (error) {
+                console.error('Error sending message:', error);
+                messageResponse.textContent = `Error: ${error.message}`;
+            }
+        }
+        
+        // Run feature tests
+        async function runFeatureTests() {
+            const featureTestSessionInfo = document.getElementById('featureTestSessionInfo');
+            const testResults = document.getElementById('testResults');
+            const resultsContainer = document.getElementById('resultsContainer');
+            
+            const sessionUuid = featureTestSessionInfo.dataset.uuid;
+            
+            if (!sessionUuid) {
+                alert('No session selected for testing');
+                return;
+            }
+            
+            // Get selected features
+            const selectedFeatures = Array.from(document.querySelectorAll('.feature-checkbox:checked')).map(cb => cb.value);
+            
+            if (selectedFeatures.length === 0) {
+                alert('Please select at least one feature to test');
+                return;
+            }
+            
+            try {
+                resultsContainer.innerHTML = '<p>Running tests...</p>';
+                testResults.classList.remove('hidden');
+                
+                const response = await fetch('/api/discovery/test_features', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        session_uuid: sessionUuid,
+                        features: selectedFeatures
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultsContainer.innerHTML = '';
+                    
+                    for (const feature in data.results) {
+                        const result = data.results[feature];
+                        const resultCard = document.createElement('div');
+                        resultCard.className = 'card';
+                        
+                        const titleElement = document.createElement('h4');
+                        titleElement.textContent = formatFeatureName(feature);
+                        resultCard.appendChild(titleElement);
+                        
+                        const messageSentElement = document.createElement('p');
+                        messageSentElement.innerHTML = `<strong>Message:</strong> ${result.message_sent}`;
+                        resultCard.appendChild(messageSentElement);
+                        
+                        const responseElement = document.createElement('div');
+                        responseElement.className = 'response';
+                        responseElement.style.marginTop = '8px';
+                        responseElement.textContent = result.success ? result.response : `Error: ${result.error}`;
+                        resultCard.appendChild(responseElement);
+                        
+                        resultsContainer.appendChild(resultCard);
+                    }
+                } else {
+                    resultsContainer.innerHTML = `<p>Error: ${data.error}</p>`;
+                }
+            } catch (error) {
+                console.error('Error running tests:', error);
+                resultsContainer.innerHTML = `<p>Error: ${error.message}</p>`;
+            }
+        }
+        
+        // Helper function to format feature names for display
+        function formatFeatureName(feature) {
+            // Map feature keys to display names
+            const featureDisplayNames = {
+                'basic': 'Basic Plant Recommendations',
+                'weather': 'Weather Integration',
+                'cart': 'Shopping Cart',
+                'booking': 'Booking Functionality',
+                'booking_confirm': 'Booking Confirmation',
+                'firestore_store': 'Firestore Storage',
+                'firestore_retrieve': 'Firestore Retrieval',
+                'firestore_detail': 'Firestore Detailed Query'
+            };
+            
+            return featureDisplayNames[feature] || feature;
+        }
+    </script>
+</body>
+</html>
