@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TruckBuddy - Pickup Truck Sharing Assistant</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background-color: #0d6efd;
+            color: white;
+            padding: 20px 0;
+            text-align: center;
+            border-radius: 8px 8px 0 0;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 2rem;
+        }
+        
+        .header p {
+            margin: 10px 0 0;
+            opacity: 0.9;
+        }
+        
+        .info-panel {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .info-panel h2 {
+            margin-top: 0;
+            color: #0d6efd;
+            border-bottom: 1px solid #e9ecef;
+            padding-bottom: 10px;
+        }
+        
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            background-color: white;
+            border-radius: 8px;
+            overflow: hidden;
+            height: 500px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .chat-header {
+            background-color: #0d6efd;
+            color: white;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .chat-header h2 {
+            margin: 0;
+            font-size: 1.2rem;
+        }
+        
+        .session-info {
+            font-size: 0.8rem;
+            opacity: 0.9;
+        }
+        
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .message {
+            max-width: 75%;
+            margin-bottom: 15px;
+            padding: 10px 15px;
+            border-radius: 18px;
+            line-height: 1.4;
+            position: relative;
+            word-wrap: break-word;
+        }
+        
+        .user-message {
+            align-self: flex-end;
+            background-color: #0d6efd;
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+        
+        .agent-message {
+            align-self: flex-start;
+            background-color: #f1f3f5;
+            color: #212529;
+            border-bottom-left-radius: 4px;
+        }
+        
+        .message-time {
+            font-size: 0.7rem;
+            opacity: 0.7;
+            margin-top: 5px;
+            text-align: right;
+        }
+        
+        .chat-input {
+            display: flex;
+            padding: 15px;
+            background-color: #f1f3f5;
+            border-top: 1px solid #e9ecef;
+        }
+        
+        .chat-input input {
+            flex: 1;
+            padding: 12px 15px;
+            border: none;
+            border-radius: 20px;
+            margin-right: 10px;
+            font-size: 0.9rem;
+        }
+        
+        .chat-input button {
+            background-color: #0d6efd;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            padding: 12px 20px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+        
+        .chat-input button:hover {
+            background-color: #0b5ed7;
+        }
+        
+        .typing-indicator {
+            display: flex;
+            padding: 10px 15px;
+            background-color: #f1f3f5;
+            border-radius: 18px;
+            margin-bottom: 15px;
+            max-width: 75%;
+            align-self: flex-start;
+        }
+        
+        .typing-indicator span {
+            height: 8px;
+            width: 8px;
+            background-color: #0d6efd;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 5px;
+            animation: typing 1s infinite;
+        }
+        
+        .typing-indicator span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+        
+        .typing-indicator span:nth-child(3) {
+            animation-delay: 0.4s;
+            margin-right: 0;
+        }
+        
+        @keyframes typing {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-5px); }
+            100% { transform: translateY(0px); }
+        }
+        
+        .bookings-container {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .bookings-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .bookings-header h2 {
+            margin: 0;
+            color: #0d6efd;
+        }
+        
+        .booking-card {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-left: 4px solid #0d6efd;
+        }
+        
+        .booking-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        
+        .booking-id {
+            font-weight: bold;
+            color: #0d6efd;
+        }
+        
+        .booking-status {
+            font-size: 0.8rem;
+            padding: 4px 8px;
+            border-radius: 4px;
+            background-color: #28a745;
+            color: white;
+        }
+        
+        .booking-status.pending {
+            background-color: #ffc107;
+            color: #212529;
+        }
+        
+        .booking-status.canceled {
+            background-color: #dc3545;
+        }
+        
+        .booking-details {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+        
+        .booking-detail {
+            padding: 8px 0;
+        }
+        
+        .detail-label {
+            font-size: 0.8rem;
+            color: #6c757d;
+            margin-bottom: 5px;
+        }
+        
+        .detail-value {
+            font-weight: 500;
+        }
+        
+        .create-booking-button {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 15px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+        
+        .create-booking-button:hover {
+            background-color: #218838;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 3px solid #0d6efd;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>TruckBuddy</h1>
+            <p>AI-powered Pickup Truck Sharing Assistant</p>
+        </div>
+        
+        <div class="info-panel">
+            <h2>About TruckBuddy</h2>
+            <p>TruckBuddy is your personal assistant for finding and booking pickup trucks. Whether you're moving furniture, transporting materials, or just need a truck for a day, TruckBuddy can help you find the right vehicle, check availability, and make bookings.</p>
+            <p>Our AI assistant can also provide weather forecasts for your moving dates, help you choose between truck models based on your specific needs, provide pricing information, and manage your bookings in our database.</p>
+        </div>
+        
+        <div class="chat-container">
+            <div class="chat-header">
+                <h2>Chat with TruckBuddy</h2>
+                <div class="session-info">
+                    Session ID: <span id="sessionId">Not connected</span>
+                </div>
+            </div>
+            
+            <div class="chat-messages" id="chatMessages">
+                <!-- Messages will be added here dynamically -->
+            </div>
+            
+            <div class="chat-input">
+                <input type="text" id="messageInput" placeholder="Type your message here..." disabled>
+                <button id="sendButton" disabled>
+                    <span id="sendButtonText">Send</span>
+                    <span id="sendButtonLoader" class="loader hidden"></span>
+                </button>
+            </div>
+        </div>
+        
+        <div class="bookings-container">
+            <div class="bookings-header">
+                <h2>Your Bookings</h2>
+                <button id="createTestBookingButton" class="create-booking-button">
+                    <span id="createBookingText">Create Test Booking</span>
+                    <span id="createBookingLoader" class="loader hidden"></span>
+                </button>
+            </div>
+            
+            <div id="bookingsList">
+                <!-- Bookings will be added here dynamically -->
+                <div id="noBookingsMessage">No bookings found. Start a conversation with TruckBuddy to book a truck!</div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Global variables
+        let sessionId = null;
+        let resourceId = "9202903528392097792"; // Default resource ID for the truck sharing agent
+        
+        // DOM elements
+        const chatMessages = document.getElementById('chatMessages');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+        const sessionIdElement = document.getElementById('sessionId');
+        const sendButtonText = document.getElementById('sendButtonText');
+        const sendButtonLoader = document.getElementById('sendButtonLoader');
+        const createTestBookingButton = document.getElementById('createTestBookingButton');
+        const createBookingText = document.getElementById('createBookingText');
+        const createBookingLoader = document.getElementById('createBookingLoader');
+        const bookingsList = document.getElementById('bookingsList');
+        const noBookingsMessage = document.getElementById('noBookingsMessage');
+        
+        // Helper functions
+        function formatTime(date) {
+            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+        
+        function addMessage(content, isUser) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message');
+            messageElement.classList.add(isUser ? 'user-message' : 'agent-message');
+            
+            const now = new Date();
+            
+            messageElement.innerHTML = `
+                ${content}
+                <div class="message-time">${formatTime(now)}</div>
+            `;
+            
+            chatMessages.appendChild(messageElement);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        function showTypingIndicator() {
+            const typingElement = document.createElement('div');
+            typingElement.classList.add('typing-indicator');
+            typingElement.id = 'typingIndicator';
+            typingElement.innerHTML = `
+                <span></span>
+                <span></span>
+                <span></span>
+            `;
+            chatMessages.appendChild(typingElement);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        function removeTypingIndicator() {
+            const typingElement = document.getElementById('typingIndicator');
+            if (typingElement) {
+                typingElement.remove();
+            }
+        }
+        
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString() + ' at ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+        
+        function renderBooking(booking) {
+            const bookingElement = document.createElement('div');
+            bookingElement.classList.add('booking-card');
+            
+            const statusClass = booking.status === 'confirmed' ? '' : booking.status === 'pending' ? 'pending' : 'canceled';
+            
+            bookingElement.innerHTML = `
+                <div class="booking-header">
+                    <div class="booking-id">${booking.id}</div>
+                    <div class="booking-status ${statusClass}">${booking.status}</div>
+                </div>
+                <div class="booking-details">
+                    <div class="booking-detail">
+                        <div class="detail-label">Vehicle</div>
+                        <div class="detail-value">${booking.vehicleMake} ${booking.vehicleModel}</div>
+                    </div>
+                    <div class="booking-detail">
+                        <div class="detail-label">Date & Time</div>
+                        <div class="detail-value">${formatDate(booking.pickupDateTime)}</div>
+                    </div>
+                    <div class="booking-detail">
+                        <div class="detail-label">Pickup</div>
+                        <div class="detail-value">${booking.pickupAddress}</div>
+                    </div>
+                    <div class="booking-detail">
+                        <div class="detail-label">Destination</div>
+                        <div class="detail-value">${booking.destinationAddress}</div>
+                    </div>
+                </div>
+            `;
+            
+            return bookingElement;
+        }
+        
+        // API functions
+        async function createSession() {
+            try {
+                const response = await fetch('/api/truck/create_session', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        resource_id: resourceId
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    sessionId = data.session_id;
+                    sessionIdElement.textContent = sessionId;
+                    
+                    // Enable chat input
+                    messageInput.disabled = false;
+                    sendButton.disabled = false;
+                    
+                    // Add welcome message
+                    addMessage("Hello! I'm TruckBuddy, your assistant for the PickupTruck App. How can I help you today?", false);
+                } else {
+                    console.error('Failed to create session:', data.error);
+                    addMessage("Sorry, I couldn't establish a connection. Please try refreshing the page.", false);
+                }
+            } catch (error) {
+                console.error('Error creating session:', error);
+                addMessage("Sorry, I couldn't establish a connection. Please try refreshing the page.", false);
+            }
+        }
+        
+        async function sendMessage(message) {
+            try {
+                sendButtonText.classList.add('hidden');
+                sendButtonLoader.classList.remove('hidden');
+                sendButton.disabled = true;
+                messageInput.disabled = true;
+                
+                // Add user message to chat
+                addMessage(message, true);
+                
+                // Show typing indicator
+                showTypingIndicator();
+                
+                // Send message to API
+                const response = await fetch('/api/truck/send_message', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        resource_id: resourceId,
+                        session_id: sessionId,
+                        message: message
+                    })
+                });
+                
+                const data = await response.json();
+                
+                // Remove typing indicator
+                removeTypingIndicator();
+                
+                if (data.success) {
+                    // Add agent response to chat
+                    addMessage(data.response, false);
+                    
+                    // If booking was created, refresh bookings list
+                    if (data.response.toLowerCase().includes('booking') && 
+                        (data.response.toLowerCase().includes('confirmed') || 
+                         data.response.toLowerCase().includes('created'))) {
+                        fetchBookings();
+                    }
+                } else {
+                    console.error('Failed to send message:', data.error);
+                    addMessage("Sorry, I couldn't process your message. Please try again.", false);
+                }
+            } catch (error) {
+                console.error('Error sending message:', error);
+                removeTypingIndicator();
+                addMessage("Sorry, I couldn't process your message. Please try again.", false);
+            } finally {
+                sendButtonText.classList.remove('hidden');
+                sendButtonLoader.classList.add('hidden');
+                sendButton.disabled = false;
+                messageInput.disabled = false;
+                messageInput.focus();
+            }
+        }
+        
+        async function fetchBookings() {
+            try {
+                const response = await fetch('/api/truck/get_bookings');
+                const data = await response.json();
+                
+                if (data.success && data.bookings && data.bookings.length > 0) {
+                    // Clear existing bookings
+                    bookingsList.innerHTML = '';
+                    
+                    // Add bookings to the list
+                    data.bookings.forEach(booking => {
+                        bookingsList.appendChild(renderBooking(booking));
+                    });
+                    
+                    // Hide no bookings message
+                    noBookingsMessage.style.display = 'none';
+                } else {
+                    // Show no bookings message
+                    bookingsList.innerHTML = '';
+                    bookingsList.appendChild(noBookingsMessage);
+                }
+            } catch (error) {
+                console.error('Error fetching bookings:', error);
+            }
+        }
+        
+        async function createTestBooking() {
+            try {
+                createBookingText.classList.add('hidden');
+                createBookingLoader.classList.remove('hidden');
+                createTestBookingButton.disabled = true;
+                
+                const response = await fetch('/api/truck/test_booking', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: "I need a truck to move furniture this weekend"
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Add message about the test booking
+                    addMessage(`I've created a test booking for you! Booking ID: ${data.booking_id}`, false);
+                    
+                    // Refresh bookings list
+                    fetchBookings();
+                } else {
+                    console.error('Failed to create test booking:', data.error);
+                    addMessage("Sorry, I couldn't create a test booking. Please try again.", false);
+                }
+            } catch (error) {
+                console.error('Error creating test booking:', error);
+                addMessage("Sorry, I couldn't create a test booking. Please try again.", false);
+            } finally {
+                createBookingText.classList.remove('hidden');
+                createBookingLoader.classList.add('hidden');
+                createTestBookingButton.disabled = false;
+            }
+        }
+        
+        // Event listeners
+        sendButton.addEventListener('click', () => {
+            const message = messageInput.value.trim();
+            if (message) {
+                sendMessage(message);
+                messageInput.value = '';
+            }
+        });
+        
+        messageInput.addEventListener('keypress', (event) => {
+            if (event.key === 'Enter') {
+                const message = messageInput.value.trim();
+                if (message) {
+                    sendMessage(message);
+                    messageInput.value = '';
+                }
+            }
+        });
+        
+        createTestBookingButton.addEventListener('click', createTestBooking);
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            createSession();
+            fetchBookings();
+        });
+    </script>
+</body>
+</html>

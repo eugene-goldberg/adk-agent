@@ -3,23 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Customer Service Agent Chat</title>
+    <title>TruckBuddy Chat</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
 </head>
 <body>
     <header>
-        <h1>Cymbal Home & Garden</h1>
+        <h1>TruckBuddy App</h1>
         <nav>
             <a href="/" class="active">Home</a>
             <a href="/agent-testing">Agent Test</a>
             <a href="/agent-discovery">Agent Discovery</a>
+            <a href="/truck-sharing">Truck Sharing Agent</a>
         </nav>
     </header>
     
     <div class="container">
         <div class="page-header">
-            <h2>Customer Service Chat</h2>
+            <h2>Truck Sharing Assistant Chat</h2>
         </div>
         
         <div class="chat-container">
@@ -38,7 +39,7 @@
                 {% else %}
                     <div class="message bot-message">
                         <div class="avatar bot-avatar">🤖</div>
-                        <div class="message-content">Welcome to Cymbal Home & Garden! How can I help you today?</div>
+                        <div class="message-content">Welcome to TruckBuddy! I'm your pickup truck sharing assistant. How can I help you with your moving or transportation needs today?</div>
                     </div>
                 {% endif %}
             </div>
@@ -171,7 +172,7 @@
                     chatHistory.innerHTML = '';
                     
                     // Add welcome message
-                    addMessageToChat('Welcome to Cymbal Home & Garden! How can I help you today?', 'agent');
+                    addMessageToChat('Welcome to TruckBuddy! I\'m your pickup truck sharing assistant. How can I help you with your moving or transportation needs today?', 'agent');
                 } else {
                     console.error('Error creating session:', data.error);
                     alert('Failed to create a new session. Please try again.');

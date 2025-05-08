@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agent Discovery and Testing</title>
+    <title>TruckBuddy Agent Discovery and Testing</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <style>
         .card {
@@ -117,11 +117,12 @@
 </head>
 <body>
     <header>
-        <h1>Agent Discovery and Testing</h1>
+        <h1>Truck Agent Discovery and Testing</h1>
         <nav>
             <a href="/">Home</a>
             <a href="/agent-testing">Agent Test</a>
             <a href="/agent-discovery" class="active">Agent Discovery</a>
+            <a href="/truck-sharing">Truck Sharing</a>
         </nav>
     </header>
 
@@ -171,7 +172,7 @@
                     </div>
                     <div style="margin-top: 8px;">
                         <label for="apiMessage">Message:</label>
-                        <textarea id="apiMessage" placeholder="Type a message to send to the agent" rows="2" style="width: 100%;">Hello, can you help me with gardening advice?</textarea>
+                        <textarea id="apiMessage" placeholder="Type a message to send to the agent" rows="2" style="width: 100%;">Hello, I need to rent a pickup truck for moving this weekend. What options do you have available?</textarea>
                     </div>
                     <button id="apiSendMessageBtn" class="btn primary" style="margin-top: 8px;">Test Send Message Endpoint</button>
                     <div id="apiSendMessageResult" class="response hidden"></div>
@@ -187,11 +188,14 @@
                     <div style="margin-top: 8px;">
                         <label>Features to Test:</label>
                         <div class="checkbox-group">
-                            <label><input type="checkbox" name="apiFeature" value="basic" checked> Basic</label>
-                            <label><input type="checkbox" name="apiFeature" value="weather" checked> Weather</label>
-                            <label><input type="checkbox" name="apiFeature" value="cart"> Cart</label>
-                            <label><input type="checkbox" name="apiFeature" value="booking"> Booking</label>
-                            <label><input type="checkbox" name="apiFeature" value="firestore_store"> Firestore Store</label>
+                            <label><input type="checkbox" name="apiFeature" value="basic" checked> Truck Info</label>
+                            <label><input type="checkbox" name="apiFeature" value="weather" checked> Weather Forecast</label>
+                            <label><input type="checkbox" name="apiFeature" value="cart" checked> Truck Options</label>
+                            <label><input type="checkbox" name="apiFeature" value="booking" checked> Truck Booking</label>
+                            <label><input type="checkbox" name="apiFeature" value="booking_confirm" checked> Booking Confirmation</label>
+                            <label><input type="checkbox" name="apiFeature" value="firestore_store"> Booking Storage</label>
+                            <label><input type="checkbox" name="apiFeature" value="firestore_retrieve"> View Bookings</label>
+                            <label><input type="checkbox" name="apiFeature" value="firestore_detail"> Booking Details</label>
                         </div>
                     </div>
                     <button id="apiTestFeaturesBtn" class="btn primary" style="margin-top: 8px;">Test Features Endpoint</button>
@@ -280,7 +284,7 @@
                         <p>No session selected. Please create a new session or select an existing one.</p>
                     </div>
                     <div id="messageInputContainer" class="hidden">
-                        <textarea id="messageInput" placeholder="Type your message..." rows="3" style="width: 100%; margin-top: 8px;"></textarea>
+                        <textarea id="messageInput" placeholder="Ask about truck availability, rental options, or weather for your moving day..." rows="3" style="width: 100%; margin-top: 8px;"></textarea>
                         <button id="sendMessageBtn" class="btn" style="margin-top: 8px;">Send Message</button>
                     </div>
                     <div id="messageResponse" class="response hidden" style="margin-top: 16px;"></div>
@@ -298,36 +302,36 @@
                 <div id="featureSelectionContainer" class="hidden">
                     <h4>Select Features to Test</h4>
                     <div>
-                        <input type="checkbox" id="basicFeature" value="basic" class="feature-checkbox">
-                        <label for="basicFeature">Basic Plant Recommendations</label>
+                        <input type="checkbox" id="basicFeature" value="basic" class="feature-checkbox" checked>
+                        <label for="basicFeature">Truck Information & Availability</label>
                     </div>
                     <div>
-                        <input type="checkbox" id="weatherFeature" value="weather" class="feature-checkbox">
-                        <label for="weatherFeature">Weather Integration</label>
+                        <input type="checkbox" id="weatherFeature" value="weather" class="feature-checkbox" checked>
+                        <label for="weatherFeature">Weather Forecast for Moving</label>
                     </div>
                     <div>
-                        <input type="checkbox" id="cartFeature" value="cart" class="feature-checkbox">
-                        <label for="cartFeature">Shopping Cart</label>
+                        <input type="checkbox" id="cartFeature" value="cart" class="feature-checkbox" checked>
+                        <label for="cartFeature">Truck Options & Add-ons</label>
                     </div>
                     <div>
-                        <input type="checkbox" id="bookingFeature" value="booking" class="feature-checkbox">
-                        <label for="bookingFeature">Booking Functionality</label>
+                        <input type="checkbox" id="bookingFeature" value="booking" class="feature-checkbox" checked>
+                        <label for="bookingFeature">Truck Booking</label>
                     </div>
                     <div>
-                        <input type="checkbox" id="bookingConfirmFeature" value="booking_confirm" class="feature-checkbox">
+                        <input type="checkbox" id="bookingConfirmFeature" value="booking_confirm" class="feature-checkbox" checked>
                         <label for="bookingConfirmFeature">Booking Confirmation</label>
                     </div>
                     <div>
                         <input type="checkbox" id="firestoreStoreFeature" value="firestore_store" class="feature-checkbox">
-                        <label for="firestoreStoreFeature">Firestore Storage</label>
+                        <label for="firestoreStoreFeature">Store Booking in Database</label>
                     </div>
                     <div>
                         <input type="checkbox" id="firestoreRetrieveFeature" value="firestore_retrieve" class="feature-checkbox">
-                        <label for="firestoreRetrieveFeature">Firestore Retrieval</label>
+                        <label for="firestoreRetrieveFeature">View All Bookings</label>
                     </div>
                     <div>
                         <input type="checkbox" id="firestoreDetailFeature" value="firestore_detail" class="feature-checkbox">
-                        <label for="firestoreDetailFeature">Firestore Detailed Query</label>
+                        <label for="firestoreDetailFeature">Get Booking Details</label>
                     </div>
                     <button id="runTestsBtn" class="btn" style="margin-top: 16px;">Run Tests</button>
                 </div>
@@ -856,14 +860,14 @@
         function formatFeatureName(feature) {
             // Map feature keys to display names
             const featureDisplayNames = {
-                'basic': 'Basic Plant Recommendations',
-                'weather': 'Weather Integration',
-                'cart': 'Shopping Cart',
-                'booking': 'Booking Functionality',
+                'basic': 'Truck Information & Availability',
+                'weather': 'Weather Forecast for Moving',
+                'cart': 'Truck Options & Add-ons',
+                'booking': 'Truck Booking',
                 'booking_confirm': 'Booking Confirmation',
-                'firestore_store': 'Firestore Storage',
-                'firestore_retrieve': 'Firestore Retrieval',
-                'firestore_detail': 'Firestore Detailed Query'
+                'firestore_store': 'Store Booking in Database',
+                'firestore_retrieve': 'View All Bookings',
+                'firestore_detail': 'Get Booking Details'
             };
             
             return featureDisplayNames[feature] || feature;

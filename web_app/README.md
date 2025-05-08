@@ -1,6 +1,6 @@
-# Customer Service Agent Web Interface
+# TruckBuddy Agent Web Interface
 
-This is a Flask web application that provides a chat interface for interacting with the Cymbal Home & Garden Customer Service Agent deployed on Vertex AI.
+This is a Flask web application that provides a chat interface for interacting with the TruckBuddy Pickup Truck Sharing Agent deployed on Vertex AI.
 
 ## Features
 
@@ -69,6 +69,7 @@ python app.py --port=5001
 - **Main Chat Interface**: http://localhost:5000/ (or your specified port)
 - **Agent Discovery Interface**: http://localhost:5000/agent-discovery
 - **Agent Testing Interface**: http://localhost:5000/agent-testing
+- **Truck Sharing Interface**: http://localhost:5000/truck-sharing
 
 ## API Endpoints
 
@@ -151,10 +152,10 @@ GET /api/discovery/discover
   "success": true,
   "agents": [
     {
-      "id": "1818126039411326976",
-      "resource_id": "projects/pickuptruckapp/locations/us-central1/reasoningEngines/1818126039411326976",
-      "display_name": "customer-service-agent",
-      "description": "A customer service agent for Cymbal Home & Garden",
+      "id": "9202903528392097792",
+      "resource_id": "projects/pickuptruckapp/locations/us-central1/reasoningEngines/9202903528392097792",
+      "display_name": "truck-sharing-agent",
+      "description": "A pickup truck sharing assistant that helps customers book trucks, find suitable vehicles for their needs, get weather information for moving dates, and manage their bookings",
       "created": "2025-05-08T14:22:10.990577Z",
       "updated": "2025-05-08T14:24:36.339561Z",
       "python_version": "3.12"
@@ -219,7 +220,7 @@ POST /api/discovery/send_message
 
 {
   "session_uuid": "eff77ffa-9a7d-4615-a6f3-20ebfd8786d5",
-  "message": "Hello, can you help me with gardening advice?"
+  "message": "Hello, I need to rent a pickup truck for moving this weekend. What options do you have available?"
 }
 ```
 
@@ -227,7 +228,7 @@ POST /api/discovery/send_message
 ```json
 {
   "success": true,
-  "response": "Hello! I'd be happy to help with gardening advice...",
+  "response": "Hello! I'd be happy to help you find a pickup truck for your move. We have several options available this weekend...",
   "session_id": "3922824941195493376",
   "resource_id": "1818126039411326976"
 }
@@ -251,13 +252,13 @@ POST /api/discovery/test_features
   "success": true,
   "results": {
     "basic": {
-      "message_sent": "Hello, I'm looking for recommendations for plants that would do well in a desert climate.",
-      "response": "I can definitely help with that! Desert plants need to be drought-resistant...",
+      "message_sent": "Hello, I need a pickup truck this weekend for moving some furniture. What options do you have?",
+      "response": "I can help you find a pickup truck for your move. We have several options available this weekend...",
       "success": true
     },
     "weather": {
-      "message_sent": "What's the weather going to be like in Las Vegas this week?",
-      "response": "The weather in Las Vegas is going to be sunny for the next few days...",
+      "message_sent": "I need to move next Saturday. What will the weather be like in Boston, and would you recommend an open-bed truck or one with a covered bed?",
+      "response": "I checked the forecast for next Saturday in Boston. It looks like there's a 60% chance of rain...",
       "success": true
     }
   },
@@ -286,6 +287,24 @@ To interactively chat with the agent through the API:
 ```bash
 python test_api.py --interactive
 ```
+
+### Mock Mode
+
+For reliable testing without a live deployed agent, the web app provides mock responses for all truck-related features:
+
+1. Set environment variable to enable mock mode:
+```bash
+export MOCK_AGENT=true
+```
+
+2. The web app will generate appropriate truck-themed responses based on the message content, including:
+   - Truck information and availability
+   - Weather forecasts for moving dates
+   - Truck options and add-ons
+   - Booking functionality
+   - Firestore integration
+
+This allows for testing the full interface even when the Vertex AI deployment is not available or when you want to avoid incurring API costs.
 
 ## Usage
 

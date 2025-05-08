@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agent Discovery & Testing - Cymbal Home & Garden</title>
+    <title>TruckBuddy Agent Testing - Pickup Truck Sharing App</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <style>
         .container {
@@ -174,17 +174,18 @@
 </head>
 <body>
     <header>
-        <h1>Cymbal Home & Garden</h1>
+        <h1>TruckBuddy Agent Testing</h1>
         <nav>
             <a href="/">Home</a>
             <a href="/agent-testing" class="active">Agent Test</a>
             <a href="/agent-discovery">Agent Discovery</a>
+            <a href="/truck-sharing">Truck Sharing</a>
         </nav>
     </header>
     
     <div class="container">
         <div class="page-header">
-            <h2>Agent Testing Interface</h2>
+            <h2>Truck Sharing Agent Testing Interface</h2>
         </div>
         
         <div class="card">
@@ -227,16 +228,16 @@
             
             <div class="features-list">
                 <label class="feature-checkbox">
-                    <input type="checkbox" name="feature" value="basic" checked> Basic Interaction
+                    <input type="checkbox" name="feature" value="basic" checked> Basic Truck Information
                 </label>
                 <label class="feature-checkbox">
                     <input type="checkbox" name="feature" value="weather" checked> Weather Integration
                 </label>
                 <label class="feature-checkbox">
-                    <input type="checkbox" name="feature" value="cart" checked> Cart Management
+                    <input type="checkbox" name="feature" value="cart" checked> Truck Options & Add-ons
                 </label>
                 <label class="feature-checkbox">
-                    <input type="checkbox" name="feature" value="booking" checked> Booking Creation
+                    <input type="checkbox" name="feature" value="booking" checked> Truck Booking
                 </label>
                 <label class="feature-checkbox">
                     <input type="checkbox" name="feature" value="booking_confirm" checked> Booking Confirmation
@@ -441,10 +442,10 @@
                         resultCard.className = 'result-card';
                         
                         const featureNames = {
-                            'basic': 'Basic Interaction',
+                            'basic': 'Basic Truck Information',
                             'weather': 'Weather Integration',
-                            'cart': 'Cart Management',
-                            'booking': 'Booking Creation',
+                            'cart': 'Truck Options & Add-ons',
+                            'booking': 'Truck Booking',
                             'booking_confirm': 'Booking Confirmation',
                             'firestore_store': 'Firestore Storage',
                             'firestore_retrieve': 'Firestore Retrieval',

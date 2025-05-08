@@ -16,6 +16,7 @@ except ImportError:
     has_agent_api = False
 
 from agent_discovery_api import agent_api as agent_discovery_blueprint  # Import our agent discovery API blueprint
+from truck_sharing_api import truck_api  # Import our truck sharing API blueprint
 
 # Load environment variables
 load_dotenv()
@@ -39,10 +40,14 @@ if has_agent_api:
 # Register our new agent discovery API blueprint
 app.register_blueprint(agent_discovery_blueprint, url_prefix='/api/discovery')
 
+# Register our truck sharing API blueprint
+app.register_blueprint(truck_api, url_prefix='/api/truck')
+
 # Configuration
 PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT", "pickuptruckapp")
 LOCATION = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
 RESOURCE_ID = os.getenv("AGENT_RESOURCE_ID", "1818126039411326976")
+TRUCK_RESOURCE_ID = os.getenv("TRUCK_AGENT_RESOURCE_ID", "9202903528392097792")
 API_ENDPOINT = f"https://{LOCATION}-aiplatform.googleapis.com/v1/projects/{PROJECT_ID}/locations/{LOCATION}/reasoningEngines/{RESOURCE_ID}"
 
 def get_access_token():
@@ -110,13 +115,15 @@ def send_message_to_agent(session_id, message):
     if os.getenv("MOCK_AGENT", "false").lower() == "true":
         print(f"Using mock agent - responding to: {message}")
         if "weather" in message.lower():
-            return "It's currently sunny in Las Vegas with a temperature of 85°F. The forecast for the next few days shows continued clear skies with temperatures ranging from 82-90°F."
-        elif "plant" in message.lower() or "garden" in message.lower():
-            return "For a dry climate like Las Vegas, I recommend drought-resistant plants such as agave, yucca, and various cacti. You might also consider desert marigolds or lantana for adding some color to your garden."
+            return "I checked the forecast for your moving date. It looks like it will be sunny with a high of 75°F. Perfect weather for moving without worrying about rain damaging your items."
+        elif "truck" in message.lower() or "move" in message.lower() or "moving" in message.lower():
+            return "I can help you find a pickup truck for your move. We have several options available this weekend. The Ford F-150 is $45/hour and includes loading assistance for an additional $25/hour. When were you planning to move, and how many hours would you need the truck?"
+        elif "book" in message.lower() or "reservation" in message.lower():
+            return "I'd be happy to book a truck for you. Could you provide me with your preferred pickup date and time, pickup location, destination address, and how many hours you'll need the truck? Also, would you like assistance with loading and unloading?"
         elif "hello" in message.lower() or "hi" in message.lower():
-            return "Hello! I'm the Cymbal Home & Garden Customer Service agent. How can I help you today?"
+            return "Hello! I'm TruckBuddy, your personal assistant for the PickupTruck App. How can I help you with your moving or transportation needs today?"
         else:
-            return "Thank you for your message. As a customer service agent for Cymbal Home & Garden, I'm here to help with your gardening and home improvement needs. Is there something specific you'd like assistance with?"
+            return "As your TruckBuddy assistant, I can help you book a pickup truck, check availability, provide pricing information, and even check the weather forecast for your moving day. What would you like assistance with today?"
     
     url = f"{API_ENDPOINT}/sessions/{session_id}:reason"
     
@@ -337,6 +344,16 @@ def agent_testing():
 def agent_discovery():
     """Render the agent discovery and testing interface."""
     response = make_response(render_template('agent_discovery.html'))
+    # Explicitly add cache control headers
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
+    
+@app.route('/truck-sharing')
+def truck_sharing():
+    """Render the truck sharing agent interface."""
+    response = make_response(render_template('truck_sharing.html'))
     # Explicitly add cache control headers
     response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
     response.headers['Pragma'] = 'no-cache'
