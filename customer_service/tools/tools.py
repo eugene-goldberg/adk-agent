@@ -11,8 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# add docstring to this module
-"""Tools module for the customer service agent."""
+"""Tools module for the truck sharing service agent."""
 
 import logging
 import uuid
@@ -28,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 def send_call_companion_link(phone_number: str) -> str:
     """
-    Sends a link to the user's phone number to start a video session.
+    Sends a link to the user's phone number to start a video session for cargo viewing.
 
     Args:
         phone_number (str): The phone number to send the link to.
@@ -38,367 +37,20 @@ def send_call_companion_link(phone_number: str) -> str:
 
     Example:
         >>> send_call_companion_link(phone_number='+12065550123')
-        {'status': 'success', 'message': 'Link sent to +12065550123'}
+        {'status': 'success', 'message': 'Video link sent to +12065550123'}
     """
 
-    logger.info("Sending call companion link to %s", phone_number)
+    logger.info("Sending video link to %s", phone_number)
 
-    return {"status": "success", "message": f"Link sent to {phone_number}"}
-
-
-def approve_discount(discount_type: str, value: float, reason: str) -> str:
-    """
-    Approve the flat rate or percentage discount requested by the user.
-
-    Args:
-        discount_type (str): The type of discount, either "percentage" or "flat".
-        value (float): The value of the discount.
-        reason (str): The reason for the discount.
-
-    Returns:
-        str: A JSON string indicating the status of the approval.
-
-    Example:
-        >>> approve_discount(type='percentage', value=10.0, reason='Customer loyalty')
-        '{"status": "ok"}'
-    """
-    logger.info(
-        "Approving a %s discount of %s because %s", discount_type, value, reason
-    )
-
-    logger.info("INSIDE TOOL CALL")
-    return '{"status": "ok"}'
-
-
-def sync_ask_for_approval(discount_type: str, value: float, reason: str) -> str:
-    """
-    Asks the manager for approval for a discount.
-
-    Args:
-        discount_type (str): The type of discount, either "percentage" or "flat".
-        value (float): The value of the discount.
-        reason (str): The reason for the discount.
-
-    Returns:
-        str: A JSON string indicating the status of the approval.
-
-    Example:
-        >>> sync_ask_for_approval(type='percentage', value=15, reason='Customer loyalty')
-        '{"status": "approved"}'
-    """
-    logger.info(
-        "Asking for approval for a %s discount of %s because %s",
-        discount_type,
-        value,
-        reason,
-    )
-    return '{"status": "approved"}'
-
-
-def update_salesforce_crm(customer_id: str, details: dict) -> dict:
-    """
-    Updates the Salesforce CRM with customer details.
-
-    Args:
-        customer_id (str): The ID of the customer.
-        details (str): A dictionary of details to update in Salesforce.
-
-    Returns:
-        dict: A dictionary with the status and message.
-
-    Example:
-        >>> update_salesforce_crm(customer_id='123', details={
-            'appointment_date': '2024-07-25',
-            'appointment_time': '9-12',
-            'services': 'Planting',
-            'discount': '15% off planting',
-            'qr_code': '10% off next in-store purchase'})
-        {'status': 'success', 'message': 'Salesforce record updated.'}
-    """
-    logger.info(
-        "Updating Salesforce CRM for customer ID %s with details: %s",
-        customer_id,
-        details,
-    )
-    return {"status": "success", "message": "Salesforce record updated."}
-
-
-def access_cart_information(customer_id: str) -> dict:
-    """
-    Args:
-        customer_id (str): The ID of the customer.
-
-    Returns:
-        dict: A dictionary representing the cart contents.
-
-    Example:
-        >>> access_cart_information(customer_id='123')
-        {'items': [{'product_id': 'soil-123', 'name': 'Standard Potting Soil', 'quantity': 1}, {'product_id': 'fert-456', 'name': 'General Purpose Fertilizer', 'quantity': 1}], 'subtotal': 25.98}
-    """
-    logger.info("Accessing cart information for customer ID: %s", customer_id)
-
-    # MOCK API RESPONSE - Replace with actual API call
-    mock_cart = {
-        "items": [
-            {
-                "product_id": "soil-123",
-                "name": "Standard Potting Soil",
-                "quantity": 1,
-            },
-            {
-                "product_id": "fert-456",
-                "name": "General Purpose Fertilizer",
-                "quantity": 1,
-            },
-        ],
-        "subtotal": 25.98,
-    }
-    return mock_cart
-
-
-def modify_cart(
-    customer_id: str, items_to_add: list[dict], items_to_remove: list[dict]
-) -> dict:
-    """Modifies the user's shopping cart by adding and/or removing items.
-
-    Args:
-        customer_id (str): The ID of the customer.
-        items_to_add (list): A list of dictionaries, each with 'product_id' and 'quantity'.
-        items_to_remove (list): A list of product_ids to remove.
-
-    Returns:
-        dict: A dictionary indicating the status of the cart modification.
-    Example:
-        >>> modify_cart(customer_id='123', items_to_add=[{'product_id': 'soil-456', 'quantity': 1}, {'product_id': 'fert-789', 'quantity': 1}], items_to_remove=[{'product_id': 'fert-112', 'quantity': 1}])
-        {'status': 'success', 'message': 'Cart updated successfully.', 'items_added': True, 'items_removed': True}
-    """
-
-    logger.info("Modifying cart for customer ID: %s", customer_id)
-    logger.info("Adding items: %s", items_to_add)
-    logger.info("Removing items: %s", items_to_remove)
-    # MOCK API RESPONSE - Replace with actual API call
-    return {
-        "status": "success",
-        "message": "Cart updated successfully.",
-        "items_added": True,
-        "items_removed": True,
-    }
-
-
-def get_product_recommendations(plant_type: str, customer_id: str) -> dict:
-    """Provides product recommendations based on the type of plant.
-
-    Args:
-        plant_type: The type of plant (e.g., 'Petunias', 'Sun-loving annuals').
-        customer_id: Optional customer ID for personalized recommendations.
-
-    Returns:
-        A dictionary of recommended products. Example:
-        {'recommendations': [
-            {'product_id': 'soil-456', 'name': 'Bloom Booster Potting Mix', 'description': '...'},
-            {'product_id': 'fert-789', 'name': 'Flower Power Fertilizer', 'description': '...'}
-        ]}
-    """
-    #
-    logger.info(
-        "Getting product recommendations for plant " "type: %s and customer %s",
-        plant_type,
-        customer_id,
-    )
-    # MOCK API RESPONSE - Replace with actual API call or recommendation engine
-    if plant_type.lower() == "petunias":
-        recommendations = {
-            "recommendations": [
-                {
-                    "product_id": "soil-456",
-                    "name": "Bloom Booster Potting Mix",
-                    "description": "Provides extra nutrients that Petunias love.",
-                },
-                {
-                    "product_id": "fert-789",
-                    "name": "Flower Power Fertilizer",
-                    "description": "Specifically formulated for flowering annuals.",
-                },
-            ]
-        }
-    else:
-        recommendations = {
-            "recommendations": [
-                {
-                    "product_id": "soil-123",
-                    "name": "Standard Potting Soil",
-                    "description": "A good all-purpose potting soil.",
-                },
-                {
-                    "product_id": "fert-456",
-                    "name": "General Purpose Fertilizer",
-                    "description": "Suitable for a wide variety of plants.",
-                },
-            ]
-        }
-    return recommendations
-
-
-def check_product_availability(product_id: str, store_id: str) -> dict:
-    """Checks the availability of a product at a specified store (or for pickup).
-
-    Args:
-        product_id: The ID of the product to check.
-        store_id: The ID of the store (or 'pickup' for pickup availability).
-
-    Returns:
-        A dictionary indicating availability.  Example:
-        {'available': True, 'quantity': 10, 'store': 'Main Store'}
-
-    Example:
-        >>> check_product_availability(product_id='soil-456', store_id='pickup')
-        {'available': True, 'quantity': 10, 'store': 'pickup'}
-    """
-    logger.info(
-        "Checking availability of product ID: %s at store: %s",
-        product_id,
-        store_id,
-    )
-    # MOCK API RESPONSE - Replace with actual API call
-    return {"available": True, "quantity": 10, "store": store_id}
-
-
-def schedule_planting_service(
-    customer_id: str, date: str, time_range: str, details: str
-) -> dict:
-    """Schedules a planting service appointment.
-
-    Args:
-        customer_id: The ID of the customer.
-        date:  The desired date (YYYY-MM-DD).
-        time_range: The desired time range (e.g., "9-12").
-        details: Any additional details (e.g., "Planting Petunias").
-
-    Returns:
-        A dictionary indicating the status of the scheduling. Example:
-        {'status': 'success', 'appointment_id': '12345', 'date': '2024-07-29', 'time': '9:00 AM - 12:00 PM'}
-
-    Example:
-        >>> schedule_planting_service(customer_id='123', date='2024-07-29', time_range='9-12', details='Planting Petunias')
-        {'status': 'success', 'appointment_id': 'some_uuid', 'date': '2024-07-29', 'time': '9-12', 'confirmation_time': '2024-07-29 9:00'}
-    """
-    logger.info(
-        "Scheduling planting service for customer ID: %s on %s (%s)",
-        customer_id,
-        date,
-        time_range,
-    )
-    logger.info("Details: %s", details)
-    # MOCK API RESPONSE - Replace with actual API call to your scheduling system
-    # Calculate confirmation time based on date and time_range
-    start_time_str = time_range.split("-")[0]  # Get the start time (e.g., "9")
-    confirmation_time_str = (
-        f"{date} {start_time_str}:00"  # e.g., "2024-07-29 9:00"
-    )
-
-    return {
-        "status": "success",
-        "appointment_id": str(uuid.uuid4()),
-        "date": date,
-        "time": time_range,
-        "confirmation_time": confirmation_time_str,  # formatted time for calendar
-    }
-
-
-def get_available_planting_times(date: str) -> list:
-    """Retrieves available planting service time slots for a given date.
-
-    Args:
-        date: The date to check (YYYY-MM-DD).
-
-    Returns:
-        A list of available time ranges.
-
-    Example:
-        >>> get_available_planting_times(date='2024-07-29')
-        ['9-12', '13-16']
-    """
-    logger.info("Retrieving available planting times for %s", date)
-    # MOCK API RESPONSE - Replace with actual API call
-    # Generate some mock time slots, ensuring they're in the correct format:
-    return ["9-12", "13-16"]
-
-
-def send_care_instructions(
-    customer_id: str, plant_type: str, delivery_method: str
-) -> dict:
-    """Sends an email or SMS with instructions on how to take care of a specific plant type.
-
-    Args:
-        customer_id:  The ID of the customer.
-        plant_type: The type of plant.
-        delivery_method: 'email' (default) or 'sms'.
-
-    Returns:
-        A dictionary indicating the status.
-
-    Example:
-        >>> send_care_instructions(customer_id='123', plant_type='Petunias', delivery_method='email')
-        {'status': 'success', 'message': 'Care instructions for Petunias sent via email.'}
-    """
-    logger.info(
-        "Sending care instructions for %s to customer: %s via %s",
-        plant_type,
-        customer_id,
-        delivery_method,
-    )
-    # MOCK API RESPONSE - Replace with actual API call or email/SMS sending logic
-    return {
-        "status": "success",
-        "message": f"Care instructions for {plant_type} sent via {delivery_method}.",
-    }
-
-
-def generate_qr_code(
-    customer_id: str,
-    discount_value: float,
-    discount_type: str,
-    expiration_days: int,
-) -> dict:
-    """Generates a QR code for a discount.
-
-    Args:
-        customer_id: The ID of the customer.
-        discount_value: The value of the discount (e.g., 10 for 10%).
-        discount_type: "percentage" (default) or "fixed".
-        expiration_days: Number of days until the QR code expires.
-
-    Returns:
-        A dictionary containing the QR code data (or a link to it). Example:
-        {'status': 'success', 'qr_code_data': '...', 'expiration_date': '2024-08-28'}
-
-    Example:
-        >>> generate_qr_code(customer_id='123', discount_value=10.0, discount_type='percentage', expiration_days=30)
-        {'status': 'success', 'qr_code_data': 'MOCK_QR_CODE_DATA', 'expiration_date': '2024-08-24'}
-    """
-    logger.info(
-        "Generating QR code for customer: %s with %s - %s discount.",
-        customer_id,
-        discount_value,
-        discount_type,
-    )
-    # MOCK API RESPONSE - Replace with actual QR code generation library
-    expiration_date = (
-        datetime.now() + timedelta(days=expiration_days)
-    ).strftime("%Y-%m-%d")
-    return {
-        "status": "success",
-        "qr_code_data": "MOCK_QR_CODE_DATA",  # Replace with actual QR code
-        "expiration_date": expiration_date,
-    }
+    return {"status": "success", "message": f"Video link sent to {phone_number}"}
 
 
 async def interact_with_firestore(query: str) -> str:
     """
     Interacts with the Firestore database via the FirestoreAgent.
 
-    This function allows the customer service agent to store and retrieve customer data,
-    bookings, and other information from the Firestore database.
+    This function allows the truck sharing agent to store and retrieve customer data,
+    bookings, vehicles, and other information from the Firestore database.
 
     Args:
         query (str): The query or command to send to the FirestoreAgent.
@@ -412,19 +64,18 @@ async def interact_with_firestore(query: str) -> str:
             - query: Query a collection (query:collection_name:json_query_params)
             
             Examples:
-            - read:customers:customer123
-            - write:bookings:booking123:{"customer_id":"123","date":"2025-05-30"}
+            - read:users:user123
+            - write:bookings:booking123:{"customerId":"123","pickupAddress":"123 Main St"}
             - update:bookings:booking456:{"status":"confirmed"}
             - delete:bookings:booking789
-            - query:bookings:{}  (list all bookings)
-            - query:bookings:{"filters":[{"field":"status","op":"==","value":"pending"}],"limit":5,"order_by":"createdAt","direction":"DESCENDING"}
+            - query:vehicles:{"filters":[{"field":"type","op":"==","value":"pickup"}]}
 
     Returns:
         str: The JSON result from the FirestoreAgent.
 
     Example:
-        >>> await interact_with_firestore(query="read:customers:customer123")
-        '{"success": true, "data": {"name": "John Doe", "email": "john@example.com"}, "id": "customer123"}'
+        >>> await interact_with_firestore(query="read:users:user123")
+        '{"success": true, "data": {"name": "Alex Johnson", "email": "alex@example.com"}, "id": "user123"}'
     """
     if not query:
         return json.dumps({"error": "Empty query provided"})
@@ -438,7 +89,7 @@ async def interact_with_firestore(query: str) -> str:
         # Process the query through the Firestore agent
         result = await firestore_agent_instance.process_query(query)
         
-        # Parse the result to make it more customer service friendly
+        # Parse the result to make it more user-friendly
         try:
             result_dict = json.loads(result)
             
@@ -447,19 +98,46 @@ async def interact_with_firestore(query: str) -> str:
                 for doc in result_dict.get("documents", []):
                     # Format dates in a more readable way
                     if "pickupDateTime" in doc:
-                        pickup_date = doc["pickupDateTime"].split("T")[0]
-                        pickup_time = doc["pickupDateTime"].split("T")[1].split("+")[0]
-                        doc["formatted_pickup"] = f"{pickup_date} at {pickup_time}"
+                        try:
+                            pickup_date = doc["pickupDateTime"].split("T")[0]
+                            pickup_time = doc["pickupDateTime"].split("T")[1].split("+")[0]
+                            pickup_time = pickup_time.split(".")[0]  # Remove milliseconds if present
+                            doc["formatted_pickup"] = f"{pickup_date} at {pickup_time}"
+                        except (IndexError, AttributeError):
+                            doc["formatted_pickup"] = doc["pickupDateTime"]
                     
                     # Add status description
                     if "status" in doc:
                         status_map = {
-                            "pending": "Awaiting confirmation",
-                            "confirmed": "Booking confirmed",
-                            "cancelled": "Booking cancelled",
-                            "completed": "Service completed"
+                            "pending": "Awaiting confirmation from truck owner",
+                            "confirmed": "Booking confirmed, ready for pickup",
+                            "in-progress": "Pickup in progress",
+                            "completed": "Transportation completed",
+                            "cancelled": "Booking cancelled", 
+                            "declined": "Booking declined by truck owner"
                         }
                         doc["status_description"] = status_map.get(doc["status"], doc["status"])
+                        
+            # For vehicles collection, add some customer-friendly details
+            if "documents" in result_dict and query.startswith("query:vehicles"):
+                for doc in result_dict.get("documents", []):
+                    # Add vehicle type description
+                    if "type" in doc:
+                        type_map = {
+                            "pickup": "Standard Pickup Truck",
+                            "van": "Moving Van",
+                            "box truck": "Box Truck (Larger Cargo)",
+                            "flatbed": "Flatbed Truck (Open Cargo Area)",
+                            "other": "Specialty Vehicle"
+                        }
+                        doc["type_description"] = type_map.get(doc["type"], doc["type"])
+                    
+                    # Format price information clearly
+                    if "hourlyRate" in doc:
+                        doc["price_display"] = f"${doc['hourlyRate']:.2f}/hour"
+                        
+                    if "offerAssistance" in doc and doc["offerAssistance"] and "assistanceRate" in doc:
+                        doc["assistance_display"] = f"Loading/unloading help available: ${doc['assistanceRate']:.2f}/hour"
             
             # Reserialize with the enhancements
             result = json.dumps(result_dict)
@@ -478,8 +156,9 @@ async def get_weather(location: str, days: int = 3) -> str:
     """
     Get weather forecast for a location using the Weather Agent.
     
-    This function allows the customer service agent to provide weather information
-    to customers who may be planning outdoor activities, gardening, or plant purchases.
+    This function allows the truck sharing agent to provide weather information
+    to customers who may be planning moves or deliveries that could be affected
+    by weather conditions.
     
     Args:
         location (str): The city or location to get the weather forecast for
@@ -489,11 +168,8 @@ async def get_weather(location: str, days: int = 3) -> str:
         str: JSON string containing the weather forecast data
         
     Example:
-        >>> await get_weather(location="London")
-        '{"location": {"name": "London", "country": "UK"}, "current": {"temp_c": 18, "condition": "Partly Cloudy", ...}, "forecast": {...}}'
-        
-        >>> await get_weather(location="Tokyo", days=5)
-        '{"location": {"name": "Tokyo", "country": "Japan"}, "current": {...}, "forecast": {"days": [...]}}'
+        >>> await get_weather(location="Chicago")
+        '{"location": {"name": "Chicago", "country": "USA"}, "current": {"temp_c": 18, "condition": "Partly Cloudy", ...}, "forecast": {...}}'
     """
     if not weather_agent_instance:
         return json.dumps({"error": "Weather agent not initialized"})
@@ -517,17 +193,19 @@ async def get_weather(location: str, days: int = 3) -> str:
                 if condition and temp is not None:
                     weather_data["customer_message"] = f"Currently {condition} and {temp}°C in {weather_data.get('location', {}).get('name', location)}"
                     
-                    # Add activity recommendations based on weather
+                    # Add moving/transportation recommendations based on weather
                     condition_lower = condition.lower()
-                    if any(term in condition_lower for term in ["rain", "shower", "thunder", "snow"]):
-                        weather_data["gardening_tip"] = "Not a good day for planting. Consider indoor plant care or planning."
+                    if any(term in condition_lower for term in ["rain", "shower", "thunder", "snow", "storm"]):
+                        weather_data["moving_tip"] = "Weather conditions might make loading/unloading difficult. Consider rescheduling if your items are sensitive to moisture or if safety is a concern."
                     elif any(term in condition_lower for term in ["sunny", "clear", "fair"]):
-                        weather_data["gardening_tip"] = "Perfect weather for planting or garden maintenance!"
+                        weather_data["moving_tip"] = "Excellent weather for moving! Just remember to stay hydrated if it's warm."
+                    elif "wind" in condition_lower:
+                        weather_data["moving_tip"] = "Windy conditions could make handling large items difficult. Take extra precautions with light, large objects."
                     elif any(term in condition_lower for term in ["cloud", "overcast", "fog"]):
-                        weather_data["gardening_tip"] = "Good conditions for most gardening activities."
+                        weather_data["moving_tip"] = "Decent conditions for moving, but reduced visibility in fog could affect transportation safety."
                     else:
                         # Generic tip if condition doesn't match known patterns
-                        weather_data["gardening_tip"] = "Check local conditions before starting outdoor gardening work."
+                        weather_data["moving_tip"] = "Check local conditions before finalizing your moving plans."
             
             # Re-serialize with the customer-friendly enhancements
             result = json.dumps(weather_data)

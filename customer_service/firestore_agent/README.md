@@ -156,7 +156,7 @@ Agent: *Retrieves booking from Firestore, checks weather forecast for that date,
 The Firestore agent is deployed as part of the Customer Service agent to Vertex AI Agent Engine with the following resource ID:
 
 ```
-projects/843958766652/locations/us-central1/reasoningEngines/3893159567722283008
+projects/843958766652/locations/us-central1/reasoningEngines/1818126039411326976
 ```
 
 To create a session for testing:
@@ -166,7 +166,7 @@ SESSION=$(python -c "import uuid; print(str(uuid.uuid4()))")
 curl -X POST \
   -H "Authorization: Bearer $(gcloud auth print-access-token)" \
   -H "Content-Type: application/json" \
-  "https://us-central1-aiplatform.googleapis.com/v1/projects/843958766652/locations/us-central1/reasoningEngines/3893159567722283008/sessions?session_id=$SESSION"
+  "https://us-central1-aiplatform.googleapis.com/v1/projects/843958766652/locations/us-central1/reasoningEngines/1818126039411326976/sessions?session_id=$SESSION"
 ```
 
 To interact with the deployed agent and test Firestore integration:
@@ -175,7 +175,7 @@ To interact with the deployed agent and test Firestore integration:
 curl -X POST \
   -H "Authorization: Bearer $(gcloud auth print-access-token)" \
   -H "Content-Type: application/json" \
-  "https://us-central1-aiplatform.googleapis.com/v1/projects/843958766652/locations/us-central1/reasoningEngines/3893159567722283008/sessions/${SESSION}:reason" \
+  "https://us-central1-aiplatform.googleapis.com/v1/projects/843958766652/locations/us-central1/reasoningEngines/1818126039411326976/sessions/${SESSION}:reason" \
   -d '{
     "messages": [
       {"author": "user", "content": "Show me all my bookings"}

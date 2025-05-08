@@ -10,9 +10,9 @@
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
-# limitations under the License.§
+# limitations under the License.
 
-"""Agent module for the customer service agent."""
+"""Agent module for the truck sharing service agent."""
 
 import logging
 import warnings
@@ -28,19 +28,8 @@ from .shared_libraries.callbacks import (
 )
 from .tools.tools import (
     send_call_companion_link,
-    approve_discount,
     interact_with_firestore,
-    get_weather,  # Added import for the weather tool
-    sync_ask_for_approval,
-    update_salesforce_crm,
-    access_cart_information,
-    modify_cart,
-    get_product_recommendations,
-    check_product_availability,
-    schedule_planting_service,
-    get_available_planting_times,
-    send_care_instructions,
-    generate_qr_code,
+    get_weather,
 )
 
 warnings.filterwarnings("ignore", category=UserWarning, module=".*pydantic.*")
@@ -64,17 +53,6 @@ root_agent = Agent(
     name=configs.agent_settings.name,
     tools=[
         send_call_companion_link,
-        approve_discount,
-        sync_ask_for_approval,
-        update_salesforce_crm,
-        access_cart_information,
-        modify_cart,
-        get_product_recommendations,
-        check_product_availability,
-        schedule_planting_service,
-        get_available_planting_times,
-        send_care_instructions,
-        generate_qr_code,
         interact_with_firestore,  # Firestore integration tool
         get_weather,  # Weather integration tool
     ],
