@@ -45,9 +45,9 @@ source $(poetry env info --path)/bin/activate
 1. Create a `.env` file in the project root with the following variables:
 ```bash
 GOOGLE_GENAI_USE_VERTEXAI=TRUE
-GOOGLE_CLOUD_PROJECT=your-project-id
-GOOGLE_CLOUD_LOCATION=your-location  # e.g., us-central1
-GOOGLE_CLOUD_STAGING_BUCKET=gs://your-bucket-name
+GOOGLE_CLOUD_PROJECT=pickuptruckapp
+GOOGLE_CLOUD_LOCATION=us-central1
+GOOGLE_CLOUD_STAGING_BUCKET=gs://run-sources-pickuptruckapp-us-central1
 
 # OpenWeatherMap API key (for Weather Agent)
 OPENWEATHERMAP_API_KEY=your-api-key
@@ -56,15 +56,28 @@ OPENWEATHERMAP_API_KEY=your-api-key
 2. Set up Google Cloud authentication:
 ```bash
 gcloud auth login
-gcloud config set project your-project-id
+gcloud config set project pickuptruckapp
+gcloud auth application-default set-quota-project pickuptruckapp
 ```
 
 3. Enable required APIs:
 ```bash
-gcloud services enable aiplatform.googleapis.com
+gcloud services enable aiplatform.googleapis.com firestore.googleapis.com
 ```
 
-4. Get an OpenWeatherMap API key:
+4. Set up Firestore database (if it doesn't exist):
+```bash
+gcloud firestore databases create --location=nam5
+```
+
+5. Grant Firestore permissions to the Vertex AI service account:
+```bash
+gcloud projects add-iam-policy-binding pickuptruckapp \
+  --member="serviceAccount:service-843958766652@gcp-sa-aiplatform-re.iam.gserviceaccount.com" \
+  --role="roles/datastore.user"
+```
+
+6. Get an OpenWeatherMap API key:
    - Register for a free account at [OpenWeatherMap](https://openweathermap.org/)
    - Navigate to the API Keys section in your account
    - Create a new API key
@@ -182,19 +195,25 @@ poetry run deploy-weather-remote --send --resource_id=your-resource-id --session
 
 ### Customer Service Agent
 
-The Customer Service Agent helps customers with product recommendations, order management, and service scheduling. It now includes Firestore integration for managing customer bookings and records.
+The Customer Service Agent helps customers with product recommendations, order management, and service scheduling for Cymbal Home & Garden. It includes Firestore integration for managing customer bookings and records, as well as Weather integration for providing weather-based gardening advice.
 
 #### Features
 
-- Product identification and recommendations
+- Product identification and recommendations based on customer needs and climate
 - Order management and cart modifications
-- Appointment scheduling
-- Discount approvals
+- Appointment scheduling with Firestore persistence
+- Discount approvals with manager validation
 - Firestore database integration for:
   - Creating and managing bookings
   - Retrieving customer records
   - Tracking service appointments
   - Storing customer preferences
+  - Persistent data across sessions
+- Weather integration for:
+  - Current weather conditions and forecasts
+  - Weather-based gardening recommendations
+  - Optimal planting time suggestions
+  - Climate-appropriate plant selection
 
 #### Local Testing
 
@@ -221,9 +240,16 @@ poetry run deploy-cs-local --send --session_id=your-session-id --message="I'm lo
 5. Test Firestore integration:
 ```bash
 poetry run deploy-cs-local --send --session_id=your-session-id --message="Show me all my bookings from the database."
+poetry run deploy-cs-local --send --session_id=your-session-id --message="Create a new booking for garden planting on June 15th from 2-5pm."
 ```
 
-6. Interactive testing:
+6. Test Weather integration:
+```bash
+poetry run deploy-cs-local --send --session_id=your-session-id --message="What's the weather forecast for Las Vegas for the next 3 days?"
+poetry run deploy-cs-local --send --session_id=your-session-id --message="Based on the weather, what plants would work well in my garden this weekend?"
+```
+
+7. Interactive testing:
 ```bash
 python test_customer_service.py --mode=local --session_id=your-session-id --interactive
 ```
@@ -252,17 +278,36 @@ poetry run deploy-cs-remote --send --resource_id=your-resource-id --session_id=y
 
 5. Test Firestore integration:
 ```bash
-poetry run deploy-cs-remote --send --resource_id=your-resource-id --session_id=your-session-id --message="Create a new booking for me for planting service on May 25th."
+# Show all bookings in the database
+poetry run deploy-cs-remote --send --resource_id=your-resource-id --session_id=your-session-id --message="Show me all bookings in the Firestore database."
+
+# Create a new booking
+poetry run deploy-cs-remote --send --resource_id=your-resource-id --session_id=your-session-id --message="Create a new booking for me for planting service on June 15th."
+
+# Store with a specific ID
+poetry run deploy-cs-remote --send --resource_id=your-resource-id --session_id=your-session-id --message="Store this booking in the database with ID june-planting-2025."
+
+# Retrieve a specific booking
+poetry run deploy-cs-remote --send --resource_id=your-resource-id --session_id=your-session-id --message="Get the details of booking june-planting-2025."
 ```
 
-6. Interactive testing:
+6. Test Weather integration:
+```bash
+# Get weather forecast
+poetry run deploy-cs-remote --send --resource_id=your-resource-id --session_id=your-session-id --message="What's the weather forecast for Las Vegas for the next 5 days?"
+
+# Get climate-based gardening advice
+poetry run deploy-cs-remote --send --resource_id=your-resource-id --session_id=your-session-id --message="I'm planning to plant some drought-resistant plants this weekend. Will the weather be suitable, and what do you recommend?"
+```
+
+7. Interactive testing:
 ```bash
 python test_customer_service.py --mode=remote --resource_id=your-resource-id --session_id=your-session-id --interactive
 ```
 
-#### Firestore Testing
+#### Firestore and Weather Integration Testing
 
-The Firestore integration can be directly tested using the provided test scripts:
+The integrations can be directly tested using the provided test scripts:
 
 ```bash
 # Test connection to Firestore
@@ -273,6 +318,9 @@ python customer_service/test_firestore_live.py
 
 # Test Firestore integration with the Customer Service agent
 python customer_service/test_firestore_direct.py
+
+# Test Weather integration
+python weather_agent/test_weather_api.py
 ```
 
 ### Cleanup
@@ -355,12 +403,23 @@ To add new features or modify existing ones:
 1. If you encounter authentication issues:
    - Ensure you're logged in with `gcloud auth login`
    - Verify your project ID and location in `.env`
-   - Check that the Vertex AI API is enabled
+   - Set your application default credentials: `gcloud auth application-default set-quota-project pickuptruckapp`
+   - Check that all required APIs are enabled: Vertex AI, Firestore
 
 2. If deployment fails:
    - Check the staging bucket exists and is accessible
    - Verify all required environment variables are set
    - Ensure you have the necessary permissions in your Google Cloud project
+   - Verify the bucket is in the correct location (us-central1)
+
+3. If Firestore integration fails:
+   - Check that the Firestore database is created in the project
+   - Verify the service account has the necessary permissions
+   - Ensure your ADC is properly configured for the pickuptruckapp project
+
+4. If Weather integration returns mock data:
+   - Check that you have provided a valid OpenWeatherMap API key in your .env file
+   - Verify the API key has the necessary access to the weather endpoints
 
 ## Contributing
 

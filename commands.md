@@ -134,6 +134,97 @@ poetry run deploy-weather-remote --send --resource_id=projects/62704333356/locat
 poetry run cleanup
 ```
 
+## Firestore Integration
+
+The Customer Service Agent includes Firestore integration for managing customer data and bookings in the pickuptruckapp GCP project.
+
+### Firestore Setup and Configuration
+
+```bash
+# Set your Google Cloud project
+gcloud config set project pickuptruckapp
+
+# Set your application default credentials
+gcloud auth application-default set-quota-project pickuptruckapp
+
+# Create Firestore database (if it doesn't exist)
+gcloud firestore databases create --location=nam5
+
+# Grant Firestore permissions to the Vertex AI service account
+gcloud projects add-iam-policy-binding pickuptruckapp \
+  --member="serviceAccount:service-843958766652@gcp-sa-aiplatform-re.iam.gserviceaccount.com" \
+  --role="roles/datastore.user"
+```
+
+### Testing Firestore Integration
+
+```bash
+# Test basic Firestore agent functionality
+python customer_service/test_firestore_agent.py
+
+# Test Firestore operations against a live database
+python customer_service/test_firestore_live.py
+
+# Test the Customer Service agent's Firestore integration
+python customer_service/test_firestore_direct.py
+```
+
+### Firestore Operations Examples
+
+The Firestore integration supports the following operations:
+
+```bash
+# Create a session
+poetry run deploy-cs-remote --create_session --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/3893159567722283008
+
+# List all bookings
+poetry run deploy-cs-remote --send --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/3893159567722283008 --session_id=YOUR_SESSION_ID --message="Show me all bookings in the Firestore database"
+
+# Create a booking
+poetry run deploy-cs-remote --send --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/3893159567722283008 --session_id=YOUR_SESSION_ID --message="Create a new booking for planting service on June 15th, 2025 from 2pm to 5pm"
+
+# Store a booking with specific ID
+poetry run deploy-cs-remote --send --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/3893159567722283008 --session_id=YOUR_SESSION_ID --message="Store this booking in the database with ID garden-planting-june-2025"
+
+# Read a specific booking
+poetry run deploy-cs-remote --send --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/3893159567722283008 --session_id=YOUR_SESSION_ID --message="Get the details of booking garden-planting-june-2025"
+
+# Update a booking
+poetry run deploy-cs-remote --send --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/3893159567722283008 --session_id=YOUR_SESSION_ID --message="Update my booking to include special instructions: need help with planting roses"
+
+# Query bookings by status
+poetry run deploy-cs-remote --send --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/3893159567722283008 --session_id=YOUR_SESSION_ID --message="Show me all my confirmed bookings"
+
+# Delete a booking
+poetry run deploy-cs-remote --send --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/3893159567722283008 --session_id=YOUR_SESSION_ID --message="Please cancel and delete my booking for June 15th"
+```
+
+## Weather Integration
+
+The Customer Service Agent also includes Weather integration for providing weather-based gardening advice.
+
+### Weather API Configuration
+
+Add your OpenWeatherMap API key to your `.env` file:
+
+```bash
+# Add to .env
+OPENWEATHERMAP_API_KEY=your_api_key_here
+```
+
+### Weather Operations Examples
+
+```bash
+# Get basic weather forecast
+poetry run deploy-cs-remote --send --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/3893159567722283008 --session_id=YOUR_SESSION_ID --message="What's the weather forecast for Las Vegas for the next 3 days?"
+
+# Get weather-based gardening advice
+poetry run deploy-cs-remote --send --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/3893159567722283008 --session_id=YOUR_SESSION_ID --message="I'm planning to plant some drought-resistant plants this weekend. Will the weather be suitable, and what do you recommend?"
+
+# Get climate-appropriate plant suggestions
+poetry run deploy-cs-remote --send --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/3893159567722283008 --session_id=YOUR_SESSION_ID --message="Which flowers would thrive in Phoenix with the current weather conditions?"
+```
+
 ## Custom Management Scripts
 
 We've also created custom scripts for managing the deployments directly via the Vertex AI API:
@@ -148,12 +239,18 @@ We've also created custom scripts for managing the deployments directly via the 
 # Get details for the Weather Agent
 ./list_agents.sh --id 6803329351933755392
 
+# Get details for the Customer Service Agent
+./list_agents.sh --id 2852828053799698432
+
 # List sessions for the Short Bot
 ./list_sessions.sh --agent 516304272124542976
 
 # List sessions for the Weather Agent
 ./list_sessions.sh --agent 6803329351933755392
 
+# List sessions for the Customer Service Agent
+./list_sessions.sh --agent 2852828053799698432
+
 # Get details for a specific session (replace with your session ID)
-./list_sessions.sh --agent 516304272124542976 --session YOUR_SESSION_ID
+./list_sessions.sh --agent 2852828053799698432 --session YOUR_SESSION_ID
 ```

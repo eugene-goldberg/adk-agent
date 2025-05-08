@@ -62,8 +62,8 @@ operation:collection_name:document_id:data
 
 Configuration is handled through the main `Config` class in `customer_service/config.py`. The Firestore settings include:
 
-- **project_id**: The Google Cloud project ID
-- **database_id**: The Firestore database ID (usually 'default')
+- **project_id**: The Google Cloud project ID (set to `pickuptruckapp`)
+- **database_id**: The Firestore database ID (usually '(default)')
 - **credentials_path**: Optional path to service account credentials
 
 ## Deployment Requirements
@@ -72,12 +72,20 @@ When deploying to Vertex AI Agent Engine, ensure:
 
 1. The service account has the necessary Firestore permissions:
    ```bash
-   gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
-     --member="serviceAccount:service-YOUR_PROJECT_NUMBER@gcp-sa-aiplatform-re.iam.gserviceaccount.com" \
+   gcloud projects add-iam-policy-binding pickuptruckapp \
+     --member="serviceAccount:service-843958766652@gcp-sa-aiplatform-re.iam.gserviceaccount.com" \
      --role="roles/datastore.user"
    ```
 
-2. Include the `google-cloud-firestore` dependency in the deployment requirements.
+2. The `google-cloud-firestore` dependency is included in the deployment requirements:
+   ```python
+   requirements=[
+       "google-cloud-aiplatform[adk,agent_engines]",
+       "pydantic-settings==2.8.1",
+       "google-cloud-firestore>=2.16.1",
+       "requests>=2.31.0",
+   ]
+   ```
 
 ## Test Scripts
 
@@ -89,9 +97,17 @@ When deploying to Vertex AI Agent Engine, ensure:
 
 ### Through the Customer Service Agent
 
+The Customer Service agent handles interactions with Firestore seamlessly:
+
 ```
 User: "Show me all my bookings"
 Agent: *Uses the interact_with_firestore tool with query "query:bookings:{}"*
+
+User: "Create a booking for lawn care on May 15th at 2pm"
+Agent: *Creates a booking with interact_with_firestore using write:bookings:booking_uuid:{...}*
+
+User: "What's the status of my May 15th booking?"
+Agent: *Retrieves the booking details with query:bookings:{"filters":[{"field":"date","op":"==","value":"2025-05-15"}]}*
 ```
 
 ### Direct Usage
@@ -99,9 +115,32 @@ Agent: *Uses the interact_with_firestore tool with query "query:bookings:{}"*
 ```python
 from customer_service.firestore_agent.agent import FirestoreAgent
 
-agent = FirestoreAgent()
+# Initialize the agent with pickuptruckapp configuration
+agent = FirestoreAgent(project_id="pickuptruckapp")
+
+# Query all bookings
 result = await agent.process_query("query:bookings:{}")
 print(result)
+
+# Create a new booking
+booking_data = {
+    "customer_id": "customer123",
+    "service": "Lawn Care",
+    "date": "2025-05-15",
+    "time": "14:00-16:00",
+    "status": "confirmed"
+}
+write_result = await agent.process_query(f"write:bookings:booking_uuid:{json.dumps(booking_data)}")
+print(write_result)
+```
+
+### Integration with Weather Data
+
+The Customer Service agent can combine Firestore data with Weather forecasts for intelligent recommendations:
+
+```
+User: "Should I reschedule my garden consultation on May 15th based on the weather?"
+Agent: *Retrieves booking from Firestore, checks weather forecast for that date, and provides recommendation*
 ```
 
 ## Best Practices
@@ -111,3 +150,36 @@ print(result)
 3. For complex queries requiring sorting, create the appropriate Firestore indexes
 4. Keep document IDs consistent and meaningful (e.g., "booking_{uuid}" or "customer_{id}")
 5. Use the appropriate data types in Firestore documents for easier querying
+
+## Vertex AI Deployment Details
+
+The Firestore agent is deployed as part of the Customer Service agent to Vertex AI Agent Engine with the following resource ID:
+
+```
+projects/843958766652/locations/us-central1/reasoningEngines/3893159567722283008
+```
+
+To create a session for testing:
+
+```bash
+SESSION=$(python -c "import uuid; print(str(uuid.uuid4()))")
+curl -X POST \
+  -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+  -H "Content-Type: application/json" \
+  "https://us-central1-aiplatform.googleapis.com/v1/projects/843958766652/locations/us-central1/reasoningEngines/3893159567722283008/sessions?session_id=$SESSION"
+```
+
+To interact with the deployed agent and test Firestore integration:
+
+```bash
+curl -X POST \
+  -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+  -H "Content-Type: application/json" \
+  "https://us-central1-aiplatform.googleapis.com/v1/projects/843958766652/locations/us-central1/reasoningEngines/3893159567722283008/sessions/${SESSION}:reason" \
+  -d '{
+    "messages": [
+      {"author": "user", "content": "Show me all my bookings"}
+    ],
+    "enableOrchestration": true
+  }'
+```
