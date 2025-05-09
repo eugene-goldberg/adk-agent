@@ -74,13 +74,16 @@ def create() -> None:
         enable_tracing=True,
     )
 
-    # Now deploy to Agent Engine
+    # Now deploy to Agent Engine using the latest SDK pattern
     try:
         print("Starting deployment, this may take several minutes...")
+        print(f"Using Vertex AI SDK version: {vertexai.__version__ if hasattr(vertexai, '__version__') else 'unknown'}")
+        
+        # Use the latest SDK pattern
         remote_app = agent_engines.create(
             agent_engine=app,
             requirements=[
-                "google-cloud-aiplatform[adk,agent_engines]",
+                "google-cloud-aiplatform[adk,agent_engines]==1.92.0",
                 "pydantic-settings==2.8.1",
                 "google-cloud-firestore>=2.16.1",
                 "requests>=2.31.0",
@@ -147,72 +150,134 @@ def get_session(resource_id: str, user_id: str, session_id: str) -> None:
 
 def send_message(resource_id: str, user_id: str, session_id: str, message: str) -> None:
     """Sends a message to the deployed agent."""
-    remote_app = agent_engines.get(resource_id)
-    
     print(f"Sending message to session {session_id}:")
     print(f"Message: {message}")
     print("\nResponse:")
     
-    # Due to API limitations, we need to use a CLI approach
-    # We'll use the gcloud command line to send a message to the agent
+    # Print SDK versions for debugging
+    import vertexai
+    print(f"Vertex AI SDK version: {vertexai.__version__ if hasattr(vertexai, '__version__') else 'unknown'}")
+    print(f"Python version: {sys.version}")
+    
     try:
-        import subprocess
-        import json
-        import tempfile
+        # Get the remote app using the updated SDK
+        print("Getting remote app...")
+        remote_app = agent_engines.get(resource_id)
         
-        # Create a temporary file with the message content
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as temp:
-            request_json = {
-                "query": message,
-                "session_id": session_id,
-                "user_id": user_id
-            }
-            json.dump(request_json, temp)
-            temp_filename = temp.name
-        
-        # Construct the gcloud command
-        cmd = [
-            "gcloud", "alpha", "ai", "reasoning-engines", "run",
-            f"--project={remote_app.project}",
-            f"--location={remote_app.location}",
-            f"--reasoning-engine={resource_id}",
-            f"--session-id={session_id}",
-            f"--request-file={temp_filename}"
-        ]
-        
-        print("Executing command:", " ".join(cmd))
-        
-        # Execute the command
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        
-        # Print the output
-        if result.returncode == 0:
-            print("Command successful!")
-            print("Output:")
-            print(result.stdout)
-        else:
-            print("Command failed!")
-            print("Error:")
-            print(result.stderr)
+        # Standard API approach - try stream_query first as the preferred method
+        print("Using stream_query method...")
+        for event in remote_app.stream_query(
+            user_id=user_id,
+            session_id=session_id,
+            message=message,
+        ):
+            print(event)
+        return
             
-        # Clean up the temporary file
-        import os
-        os.unlink(temp_filename)
+    except AttributeError as attr_err:
+        print(f"stream_query not available: {attr_err}")
+        # Fall back to REST API approach if stream_query is not available
+        print("Falling back to REST API approach...")
+        
+        import requests
+        import json
+        import google.auth
+        import google.auth.transport.requests
+        
+        # Get credentials and project ID
+        credentials, project = google.auth.default(scopes=["https://www.googleapis.com/auth/cloud-platform"])
+        auth_req = google.auth.transport.requests.Request()
+        credentials.refresh(auth_req)
+        token = credentials.token
+        
+        location = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
+        project_id = os.getenv("GOOGLE_CLOUD_PROJECT", "pickuptruckapp")
+        
+        # Construct the API endpoint for reasoning engines
+        # Note: The resource_id might already contain the full path
+        if resource_id.startswith("projects/"):
+            # Use the resource_id as is if it's a full path
+            base_path = resource_id
+            numeric_id = resource_id.split('/')[-1]
+        else:
+            # Construct the full path if just the numeric ID is provided
+            numeric_id = resource_id
+            base_path = f"projects/{project_id}/locations/{location}/reasoningEngines/{numeric_id}"
+            
+        endpoint = f"https://{location}-aiplatform.googleapis.com/v1/{base_path}:streamQuery"
+        print(f"Using API endpoint: {endpoint}")
+        
+        # Prepare the request payload
+        payload = {
+            "class_method": "stream_query",
+            "input": {
+                "user_id": user_id,
+                "session_id": session_id,
+                "message": message
+            }
+        }
+        
+        # Set headers
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json"
+        }
+        
+        # Send the request
+        print("Sending API request...")
+        response = requests.post(endpoint, headers=headers, json=payload)
+        
+        if response.status_code == 200:
+            print("API call successful!")
+            
+            # Process streaming response
+            try:
+                # The response can be a series of JSON objects separated by newlines
+                lines = response.text.strip().split('\n')
+                
+                # Get the last response (most complete)
+                last_response = None
+                for line in lines:
+                    if line.strip():
+                        try:
+                            parsed = json.loads(line.strip())
+                            last_response = parsed
+                        except json.JSONDecodeError:
+                            continue
+                
+                if last_response:
+                    print(f"API Response: {json.dumps(last_response, indent=2)}")
+                    
+                    # Extract the text from the response based on the expected structure
+                    text_response = "No text found in response"
+                    
+                    # Check for content.parts[].text structure
+                    if "content" in last_response and "parts" in last_response["content"]:
+                        for part in last_response["content"]["parts"]:
+                            if "text" in part:
+                                text_response = part["text"]
+                                break
+                    
+                    print(f"Response: {text_response}")
+                else:
+                    print("No valid JSON response found in the API response")
+            except Exception as parse_err:
+                print(f"Error parsing response: {parse_err}")
+                print(f"Raw response: {response.text[:1000]}...")
+        else:
+            print(f"API call failed with status code: {response.status_code}")
+            print(f"Error response: {response.text}")
+            raise Exception(f"API call failed: {response.status_code} - {response.text}")
+        
     except Exception as e:
         print(f"Error sending message: {e}")
+        print("\nDiagnostic information:")
+        print(f"- Resource ID: {resource_id}")
+        print(f"- Session ID: {session_id}")
+        print(f"- User ID: {user_id}")
         
-        # Print information about the agent
-        print("\nAgent information:")
-        print(f"- Resource name: {remote_app.resource_name}")
-        print(f"- Display name: {remote_app.display_name}")
-        print(f"- Methods: {[m for m in dir(remote_app) if not m.startswith('_') and callable(getattr(remote_app, m))]}")
-        
-        # Provide user with instructions for manual testing
-        print("\nYou can test the agent manually with the following command:")
-        print(f"gcloud alpha ai reasoning-engines run --project=pickuptruckapp --location=us-central1 --reasoning-engine={resource_id} --session-id={session_id} --query=\"{message}\"")
-        
-        print("\nOr visit the Google Cloud Console to test the agent:")
-        print(f"https://console.cloud.google.com/vertex-ai/generative/reasoning-engines/details/{resource_id}?project=pickuptruckapp")
+        # Re-raise the exception to ensure proper error handling
+        raise
 
 
 def main(argv=None):

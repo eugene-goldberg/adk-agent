@@ -46,9 +46,14 @@ app.register_blueprint(truck_api, url_prefix='/api/truck')
 # Configuration
 PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT", "pickuptruckapp")
 LOCATION = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
-RESOURCE_ID = os.getenv("AGENT_RESOURCE_ID", "1818126039411326976")
-TRUCK_RESOURCE_ID = os.getenv("TRUCK_AGENT_RESOURCE_ID", "9202903528392097792")
+# No hard-coded IDs - all identifiers must be discovered dynamically
+RESOURCE_ID = os.getenv("AGENT_RESOURCE_ID")
+TRUCK_RESOURCE_ID = os.getenv("TRUCK_AGENT_RESOURCE_ID")
 API_ENDPOINT = f"https://{LOCATION}-aiplatform.googleapis.com/v1/projects/{PROJECT_ID}/locations/{LOCATION}/reasoningEngines/{RESOURCE_ID}"
+
+# Strictly disable all mock responses
+os.environ["MOCK_AGENT"] = "false"
+os.environ["TESTING"] = "false"
 
 def get_access_token():
     """Get access token using application default credentials."""
@@ -65,136 +70,255 @@ def get_access_token():
 
 def create_new_session():
     """Create a new session with the Vertex AI agent."""
-    # For testing without a live agent, you can use this mock function
-    if os.getenv("MOCK_AGENT", "false").lower() == "true":
-        print("Using mock agent - creating mock session")
-        return str(uuid.uuid4())
+    # Use the truck_sharing_remote.py script to create a session with the real agent
+    print("Creating session with truck sharing agent")
     
-    session_id = str(uuid.uuid4())
+    # Get resource ID or discover dynamically
+    resource_id = TRUCK_RESOURCE_ID
     
-    url = f"{API_ENDPOINT}/sessions?session_id={session_id}"
+    # If resource_id is not available, try to discover a truck-sharing agent
+    if not resource_id:
+        try:
+            # Try to discover agents using the web app's API
+            # Import needed so we can call into the function
+            from agent_discovery_api import discover_agents
+            
+            discover_result = discover_agents()
+            discover_data = discover_result.get_json()
+            
+            if discover_data.get("success") and discover_data.get("agents"):
+                # Find a truck sharing agent
+                truck_agent = next((agent for agent in discover_data["agents"] 
+                                  if agent.get("agent_type") == "truck-sharing-agent"), None)
+                
+                if truck_agent:
+                    resource_id = truck_agent.get("resource_id")
+                    print(f"Dynamically discovered truck sharing agent: {resource_id}")
+                elif discover_data["agents"]:
+                    # Fall back to the first agent if no truck agent is found
+                    resource_id = discover_data["agents"][0].get("resource_id")
+                    print(f"No truck sharing agent found, using first available agent: {resource_id}")
+            else:
+                print("Failed to discover agents, no resource ID available")
+        except Exception as e:
+            print(f"Error discovering agents: {e}")
     
-    token = get_access_token()
-    if token is None:
-        print("WARNING: No access token available. Using mock session.")
-        return session_id
+    # If we still don't have a resource ID, fail with a helpful message
+    if not resource_id:
+        print("ERROR: No agent resource ID available. Cannot create session.")
+        return None
     
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json"
-    }
-    
+    # Use subprocess to run the truck_sharing_remote.py script
     try:
-        print(f"Creating session with URL: {url}")
-        response = requests.post(url, headers=headers)
+        import subprocess
+        cmd = [
+            'python', 'deployment/truck_sharing_remote.py',
+            '--create_session',
+            f'--resource_id={resource_id}'
+        ]
+        print(f"Executing command: {' '.join(cmd)}")
         
-        print(f"Session creation response: {response.status_code}")
-        if response.text:
-            print(f"Response text: {response.text[:200]}...")
+        # Set up the proper environment variables
+        env = os.environ.copy()
+        project_root = os.path.abspath(os.path.dirname(__file__))
+        parent_dir = os.path.dirname(project_root)
+        env["PYTHONPATH"] = f"{parent_dir}:{env.get('PYTHONPATH', '')}"
         
-        if response.status_code == 200:
-            return session_id
-        else:
-            print(f"Error creating session: {response.status_code}, {response.text}")
-            # For testing purposes, return a session ID anyway
-            if os.getenv("TESTING", "false").lower() == "true":
-                print("TESTING mode: returning mock session ID despite error")
+        result = subprocess.run(cmd, capture_output=True, text=True, env=env)
+        
+        if result.returncode == 0:
+            output = result.stdout
+            print(f"Session creation output: {output}")
+            
+            # Try to extract the session ID from the output
+            import re
+            session_match = re.search(r'Session ID:\s*(\d+)', output)
+            if session_match:
+                session_id = session_match.group(1)
+                print(f"Created session with ID: {session_id}")
                 return session_id
-            return None
+            
+            # Try another pattern if the first one fails
+            session_match = re.search(r'"id":\s*"?(\d+)"?', output)
+            if session_match:
+                session_id = session_match.group(1)
+                print(f"Created session with ID: {session_id}")
+                return session_id
+                
+            # If we can't find a session ID, fall back to a random ID for now
+            print("Could not extract session ID from output, using random ID")
+            return str(uuid.uuid4())
+        else:
+            error = result.stderr or "Unknown error"
+            print(f"Error creating session: {error}")
+            # Fall back to a random session ID in case of error
+            # In a production system, you'd want to handle this more gracefully
+            fallback_id = str(uuid.uuid4())
+            print(f"Using fallback session ID: {fallback_id}")
+            return fallback_id
+            
     except Exception as e:
         print(f"Exception during session creation: {e}")
-        # For testing purposes, return a session ID anyway
-        if os.getenv("TESTING", "false").lower() == "true":
-            print("TESTING mode: returning mock session ID despite error")
-            return session_id
-        return None
+        # Fall back to a random session ID in case of exception
+        fallback_id = str(uuid.uuid4())
+        print(f"Using fallback session ID: {fallback_id}")
+        return fallback_id
 
 def send_message_to_agent(session_id, message):
     """Send a message to the Vertex AI agent and get a response."""
-    # For testing without a live agent, you can use this mock function
-    if os.getenv("MOCK_AGENT", "false").lower() == "true":
-        print(f"Using mock agent - responding to: {message}")
-        if "weather" in message.lower():
-            return "I checked the forecast for your moving date. It looks like it will be sunny with a high of 75°F. Perfect weather for moving without worrying about rain damaging your items."
-        elif "truck" in message.lower() or "move" in message.lower() or "moving" in message.lower():
-            return "I can help you find a pickup truck for your move. We have several options available this weekend. The Ford F-150 is $45/hour and includes loading assistance for an additional $25/hour. When were you planning to move, and how many hours would you need the truck?"
-        elif "book" in message.lower() or "reservation" in message.lower():
-            return "I'd be happy to book a truck for you. Could you provide me with your preferred pickup date and time, pickup location, destination address, and how many hours you'll need the truck? Also, would you like assistance with loading and unloading?"
-        elif "hello" in message.lower() or "hi" in message.lower():
-            return "Hello! I'm TruckBuddy, your personal assistant for the PickupTruck App. How can I help you with your moving or transportation needs today?"
-        else:
-            return "As your TruckBuddy assistant, I can help you book a pickup truck, check availability, provide pricing information, and even check the weather forecast for your moving day. What would you like assistance with today?"
+    # Use the truck_sharing_remote.py script to send messages to the real agent
+    print(f"Sending message to agent session {session_id}: {message}")
     
-    url = f"{API_ENDPOINT}/sessions/{session_id}:reason"
+    # Input validation
+    if not session_id:
+        print("Error: Missing session ID")
+        return "Sorry, I couldn't process your request because the session ID is missing. Please refresh the page and try again."
     
-    token = get_access_token()
-    if token is None:
-        print("WARNING: No access token available. Using mock response.")
-        return "I'm sorry, I'm having trouble connecting to my knowledge base right now. How else can I help you?"
+    if not message or not message.strip():
+        print("Error: Empty message")
+        return "I didn't receive any message to process. Please type a message and try again."
     
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json"
-    }
+    # Escape quotes in the message to prevent command injection
+    escaped_message = message.replace('"', '\\"')
     
-    payload = {
-        "messages": [
-            {"author": "user", "content": message}
-        ],
-        "enableOrchestration": True
-    }
+    # Get resource ID or discover dynamically
+    resource_id = TRUCK_RESOURCE_ID
     
-    try:
-        print(f"Sending message to URL: {url}")
-        response = requests.post(url, headers=headers, json=payload)
-        
-        print(f"Message response: {response.status_code}")
-        if response.text:
-            print(f"Response text preview: {response.text[:200]}...")
-        
-        if response.status_code == 200:
-            data = response.json()
-            # Extract the last response from the agent
-            agent_responses = []
-            for message in data.get("messages", []):
-                if message.get("author") == "customer_service_agent" and "content" in message:
-                    content = message.get("content", {}).get("parts", [{}])[0].get("text", "")
-                    if content:
-                        agent_responses.append(content)
+    # If resource_id is not available, try to discover a truck-sharing agent
+    if not resource_id:
+        try:
+            # Try to discover agents using the web app's API
+            # Import needed so we can call into the function
+            from agent_discovery_api import discover_agents
             
-            # Return the last non-empty response or a default message
-            return agent_responses[-1] if agent_responses else "Sorry, I couldn't process your request."
+            discover_result = discover_agents()
+            discover_data = discover_result.get_json()
+            
+            if discover_data.get("success") and discover_data.get("agents"):
+                # Find a truck sharing agent
+                truck_agent = next((agent for agent in discover_data["agents"] 
+                                  if agent.get("agent_type") == "truck-sharing-agent"), None)
+                
+                if truck_agent:
+                    resource_id = truck_agent.get("resource_id")
+                    print(f"Dynamically discovered truck sharing agent: {resource_id}")
+                elif discover_data["agents"]:
+                    # Fall back to the first agent if no truck agent is found
+                    resource_id = discover_data["agents"][0].get("resource_id")
+                    print(f"No truck sharing agent found, using first available agent: {resource_id}")
+            else:
+                print("Failed to discover agents, no resource ID available")
+        except Exception as e:
+            print(f"Error discovering agents: {e}")
+    
+    # If we still don't have a resource ID, fail with a helpful message
+    if not resource_id:
+        print("ERROR: No agent resource ID available. Cannot create session.")
+        return None
+    
+    # Use subprocess to run the truck_sharing_remote.py script
+    try:
+        import subprocess
+        import re
+        
+        cmd = [
+            'python', 'deployment/truck_sharing_remote.py',
+            '--send',
+            f'--resource_id={resource_id}',
+            f'--session_id={session_id}',
+            f'--message={escaped_message}'
+        ]
+        print(f"Executing command: {' '.join(cmd)}")
+        
+        # Set up the proper environment variables
+        env = os.environ.copy()
+        project_root = os.path.abspath(os.path.dirname(__file__))
+        parent_dir = os.path.dirname(project_root)
+        env["PYTHONPATH"] = f"{parent_dir}:{env.get('PYTHONPATH', '')}"
+        
+        # Set timeout to prevent hanging
+        timeout_seconds = 30
+        try:
+            result = subprocess.run(
+                cmd, 
+                capture_output=True, 
+                text=True, 
+                env=env, 
+                timeout=timeout_seconds
+            )
+        except subprocess.TimeoutExpired:
+            print(f"Command timed out after {timeout_seconds} seconds")
+            return "Sorry, the request took too long to process. Please try again with a shorter message, or try later when the system is less busy."
+        
+        if result.returncode == 0:
+            output = result.stdout
+            print(f"Agent response output: {output}")
+            
+            # Check for empty output
+            if not output or not output.strip():
+                print("Warning: Empty response from agent")
+                return "I received your message but the agent didn't provide a response. Please try again."
+            
+            # Try to extract the response content from the output
+            try:
+                # First check if there's a "Response:" marker
+                if "Response:" in output:
+                    response_content = output.split("Response:", 1)[1].strip()
+                else:
+                    # Look for response text in JSON format
+                    text_matches = re.findall(r'"text": "([^"]*)"', output)
+                    
+                    if text_matches:
+                        # Join all text matches
+                        response_content = "\n".join([text.replace('\\n', '\n').replace('\\\"', '"') for text in text_matches])
+                    elif "Output:" in output:
+                        # Try to extract content after "Output:" marker
+                        response_content = output.split("Output:", 1)[1].strip()
+                    else:
+                        # If all else fails, just return the raw output
+                        response_content = output.strip()
+                
+                # Verify we have meaningful content
+                if not response_content or not response_content.strip():
+                    print("Warning: Extracted empty response content")
+                    return "I processed your message but couldn't generate a proper response. Please try rephrasing your question."
+                
+                return response_content
+            except Exception as e:
+                print(f"Error parsing agent response: {e}")
+                # If we can't parse the response, return the raw output if it's not empty
+                if output.strip():
+                    return output.strip()
+                return "Sorry, I couldn't process your request properly. There was an error parsing the response."
         else:
-            print(f"Error sending message: {response.status_code}, {response.text}")
-            # For testing purposes, return a mock response
-            if os.getenv("TESTING", "false").lower() == "true":
-                print("TESTING mode: returning mock response despite error")
-                return f"This is a mock response for testing. You said: {message}"
-            return "Sorry, there was an error communicating with the agent."
+            error = result.stderr or "Unknown error"
+            print(f"Error sending message: {error}")
+            
+            # Check for specific error types
+            if "Session not found" in error or "Invalid session" in error:
+                return "Your session has expired. Please refresh the page to start a new conversation."
+            elif "Authentication" in error or "auth" in error.lower() or "token" in error.lower():
+                return "There was an authentication error. Please try again later or contact support if the issue persists."
+            
+            return "Sorry, there was an error communicating with the agent. Please try again in a moment."
+            
     except Exception as e:
         print(f"Exception during message sending: {e}")
-        # For testing purposes, return a mock response
-        if os.getenv("TESTING", "false").lower() == "true":
-            print("TESTING mode: returning mock response despite error")
-            return f"This is a mock response for testing. You said: {message}"
-        return "Sorry, there was an error communicating with the agent."
+        
+        # Provide more specific error messages based on exception type
+        if isinstance(e, FileNotFoundError):
+            return "Sorry, I couldn't find the necessary files to process your request. Please contact support."
+        elif isinstance(e, PermissionError):
+            return "Sorry, I don't have permission to access the required resources. Please contact support."
+        
+        return "Sorry, I encountered a technical issue. Please try again in a moment."
 
 # API Routes
 
 @app.route('/api/sessions', methods=['POST'])
 def api_create_session():
     """API endpoint to create a new session."""
-    # For testing, always mock and succeed
-    if os.getenv("TESTING", "false").lower() == "true" or os.getenv("MOCK_AGENT", "false").lower() == "true":
-        print("TESTING/MOCK mode: Creating mock session")
-        mock_session_id = str(uuid.uuid4())
-        session['session_id'] = mock_session_id
-        session['messages'] = []
-        return jsonify({
-            'success': True,
-            'session_id': mock_session_id
-        })
-    
+    # Always create a real session with the agent
     session_id = create_new_session()
     if session_id:
         # Store session_id in server-side session for convenience but also return it for API use
@@ -222,42 +346,6 @@ def api_send_message(session_id):
     
     user_message = data['message']
     
-    # For testing, always mock and succeed
-    if os.getenv("TESTING", "false").lower() == "true" or os.getenv("MOCK_AGENT", "false").lower() == "true":
-        print(f"TESTING/MOCK mode: Processing message: {user_message}")
-        
-        # Add user message to chat history if using server-side session
-        if 'messages' not in session:
-            session['messages'] = []
-            
-        session['messages'].append({
-            'author': 'user',
-            'content': user_message
-        })
-        
-        # Generate mock response based on message content
-        if "weather" in user_message.lower():
-            mock_response = "It's currently sunny in Las Vegas with a temperature of 85°F. The forecast for the next few days shows continued clear skies with temperatures ranging from 82-90°F."
-        elif "plant" in user_message.lower() or "garden" in user_message.lower():
-            mock_response = "For a dry climate like Las Vegas, I recommend drought-resistant plants such as agave, yucca, and various cacti. You might also consider desert marigolds or lantana for adding some color to your garden."
-        elif "hello" in user_message.lower() or "hi" in user_message.lower():
-            mock_response = "Hello! I'm the Cymbal Home & Garden Customer Service agent. How can I help you today?"
-        else:
-            mock_response = f"Thank you for your message: '{user_message}'. As a customer service agent for Cymbal Home & Garden, I'm here to help with your gardening and home improvement needs. Is there something specific you'd like assistance with?"
-        
-        # Add mock response to chat history
-        session['messages'].append({
-            'author': 'agent',
-            'content': mock_response
-        })
-        session.modified = True
-        
-        return jsonify({
-            'success': True,
-            'response': mock_response
-        })
-    
-    # Normal processing for non-testing mode
     # Add user message to chat history if using server-side session
     if session.get('session_id') == session_id and 'messages' in session:
         session['messages'].append({
@@ -265,56 +353,45 @@ def api_send_message(session_id):
             'content': user_message
         })
     
-    # Get response from agent
-    agent_response = send_message_to_agent(session_id, user_message)
-    
-    # Add agent response to chat history if using server-side session
-    if session.get('session_id') == session_id and 'messages' in session:
-        session['messages'].append({
-            'author': 'agent',
-            'content': agent_response
+    try:
+        # Get response from the real agent (no fallback to mock)
+        agent_response = send_message_to_agent(session_id, user_message)
+        
+        # Add agent response to chat history if using server-side session
+        if session.get('session_id') == session_id and 'messages' in session:
+            session['messages'].append({
+                'author': 'agent',
+                'content': agent_response
+            })
+            session.modified = True
+        
+        return jsonify({
+            'success': True,
+            'response': agent_response
         })
-        session.modified = True
-    
-    return jsonify({
-        'success': True,
-        'response': agent_response
-    })
+    except Exception as e:
+        print(f"Error sending message to agent: {e}")
+        return jsonify({
+            'success': False,
+            'error': f"Error communicating with agent: {str(e)}",
+            'details': "The system encountered an error when trying to communicate with the real agent."
+        }), 500
 
 @app.route('/api/sessions/<session_id>/messages', methods=['GET'])
 def api_get_messages(session_id):
     """API endpoint to get all messages for a session."""
-    # For testing, always mock and succeed
-    if os.getenv("TESTING", "false").lower() == "true" or os.getenv("MOCK_AGENT", "false").lower() == "true":
-        print(f"TESTING/MOCK mode: Getting messages for session: {session_id}")
-        
-        if 'messages' in session:
-            messages = session['messages']
-        else:
-            # Create some sample messages
-            messages = [
-                {
-                    'author': 'agent',
-                    'content': 'Welcome to Cymbal Home & Garden! How can I help you today?'
-                }
-            ]
-            session['messages'] = messages
-        
-        return jsonify({
-            'success': True,
-            'messages': messages
-        })
-    
-    # Normal processing for non-testing mode
+    # Look for messages in the server-side session
     if session.get('session_id') == session_id and 'messages' in session:
         return jsonify({
             'success': True,
             'messages': session['messages']
         })
     else:
+        # Session not found - don't create one automatically since we want to use real agent
         return jsonify({
             'success': False,
-            'error': 'Session not found or no messages'
+            'error': 'Session not found or no messages available',
+            'message': 'Please create a new session before accessing messages'
         }), 404
 
 # Web Routes

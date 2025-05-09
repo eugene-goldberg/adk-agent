@@ -2,6 +2,27 @@
 
 This document provides detailed instructions and examples for testing the ADK agents deployed on Vertex AI.
 
+## Environment Details
+
+- **Python Version**: 3.12.10
+- **Vertex AI SDK Version**: 1.92.0
+- **Google ADK Version**: 0.2.0
+- **Last Updated**: May 2025
+- **Key Dependencies**:
+  - google-cloud-aiplatform[adk,agent_engines]==1.92.0
+  - google-adk>=0.2.0
+  - pydantic-settings==2.8.1
+  - google-cloud-firestore>=2.16.1
+  - requests>=2.31.0
+  - python-dotenv>=1.0.0
+
+## Deployed Agents
+
+Current production deployments as of May 2025:
+
+- **Truck Sharing Agent**: `projects/843958766652/locations/us-central1/reasoningEngines/1369314189046185984`
+- **Customer Service Agent**: `projects/843958766652/locations/us-central1/reasoningEngines/2753748861997547520`
+
 ## Table of Contents
 
 - [General Testing Process](#general-testing-process)
@@ -114,7 +135,7 @@ The Customer Service Agent helps customers with gardening advice, product recomm
 source .venv-py312/bin/activate
 
 # Create a session with the Customer Service Agent
-python deployment/customer_service_remote.py --create_session --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/3893159567722283008
+python deployment/customer_service_remote.py --create_session --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/1818126039411326976
 
 # Note the session ID from the output
 ```
@@ -124,31 +145,31 @@ python deployment/customer_service_remote.py --create_session --resource_id=proj
 ```bash
 # Test basic greeting and gardening advice
 python deployment/customer_service_remote.py --send \
-  --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/3893159567722283008 \
+  --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/1818126039411326976 \
   --session_id=YOUR_SESSION_ID \
   --message="Hello, I'm looking for some gardening advice for my home in Las Vegas."
 
 # Test product recommendations
 python deployment/customer_service_remote.py --send \
-  --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/3893159567722283008 \
+  --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/1818126039411326976 \
   --session_id=YOUR_SESSION_ID \
   --message="Can you recommend plants that would do well in a hot, dry climate?"
 
 # Test cart management
 python deployment/customer_service_remote.py --send \
-  --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/3893159567722283008 \
+  --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/1818126039411326976 \
   --session_id=YOUR_SESSION_ID \
   --message="Can you show me what's in my cart?"
 
 # Test service scheduling
 python deployment/customer_service_remote.py --send \
-  --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/3893159567722283008 \
+  --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/1818126039411326976 \
   --session_id=YOUR_SESSION_ID \
   --message="I'm interested in your planting services. What are the available times?"
 
 # Test discount approval
 python deployment/customer_service_remote.py --send \
-  --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/3893159567722283008 \
+  --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/1818126039411326976 \
   --session_id=YOUR_SESSION_ID \
   --message="I saw this fertilizer for $5 cheaper at another store. Can you match that price?"
 ```
@@ -158,25 +179,25 @@ python deployment/customer_service_remote.py --send \
 ```bash
 # Test listing bookings from Firestore
 python deployment/customer_service_remote.py --send \
-  --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/3893159567722283008 \
+  --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/1818126039411326976 \
   --session_id=YOUR_SESSION_ID \
   --message="Show me all bookings in the Firestore database"
 
 # Test creating a new booking in Firestore
 python deployment/customer_service_remote.py --send \
-  --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/3893159567722283008 \
+  --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/1818126039411326976 \
   --session_id=YOUR_SESSION_ID \
   --message="Create a new booking for planting service on June 15th, 2025 from 2pm to 5pm."
 
 # Test storing a booking with a specific ID
 python deployment/customer_service_remote.py --send \
-  --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/3893159567722283008 \
+  --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/1818126039411326976 \
   --session_id=YOUR_SESSION_ID \
   --message="Store this booking in the database with ID june-planting-2025"
 
 # Test retrieving specific booking details
 python deployment/customer_service_remote.py --send \
-  --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/3893159567722283008 \
+  --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/1818126039411326976 \
   --session_id=YOUR_SESSION_ID \
   --message="Get the details of booking june-planting-2025"
 ```
@@ -186,19 +207,19 @@ python deployment/customer_service_remote.py --send \
 ```bash
 # Test basic weather query
 python deployment/customer_service_remote.py --send \
-  --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/3893159567722283008 \
+  --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/1818126039411326976 \
   --session_id=YOUR_SESSION_ID \
   --message="What's the weather forecast for Las Vegas for the next 3 days?"
 
 # Test weather-based gardening advice
 python deployment/customer_service_remote.py --send \
-  --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/3893159567722283008 \
+  --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/1818126039411326976 \
   --session_id=YOUR_SESSION_ID \
   --message="I'm planning to plant some drought-resistant plants this weekend. Will the weather be suitable, and what do you recommend?"
 
 # Test weather comparison for plant selection
 python deployment/customer_service_remote.py --send \
-  --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/3893159567722283008 \
+  --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/1818126039411326976 \
   --session_id=YOUR_SESSION_ID \
   --message="I'm trying to decide whether to plant now or wait until next week. Can you compare the weather for both time periods and advise me?"
 ```
@@ -229,19 +250,19 @@ The Customer Service Agent includes integration with the Weather Agent to provid
 ```bash
 # Test basic weather forecasting
 python deployment/customer_service_remote.py --send \
-  --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/3893159567722283008 \
+  --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/1818126039411326976 \
   --session_id=YOUR_SESSION_ID \
   --message="What's the weather going to be like in Phoenix next week?"
 
 # Test weather-based plant recommendations
 python deployment/customer_service_remote.py --send \
-  --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/3893159567722283008 \
+  --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/1818126039411326976 \
   --session_id=YOUR_SESSION_ID \
   --message="Which flowers would thrive with the current weather in Las Vegas?"
 
 # Test gardening planning based on weather
 python deployment/customer_service_remote.py --send \
-  --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/3893159567722283008 \
+  --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/1818126039411326976 \
   --session_id=YOUR_SESSION_ID \
   --message="When would be the best time to plant my tomatoes based on the weather forecast?"
 ```
@@ -264,7 +285,7 @@ The Firestore integration supports the following operations:
 1. **Read Operation**:
 ```bash
 python deployment/customer_service_remote.py --send \
-  --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/3893159567722283008 \
+  --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/1818126039411326976 \
   --session_id=YOUR_SESSION_ID \
   --message="Show me booking with ID booking456"
 ```
@@ -272,7 +293,7 @@ python deployment/customer_service_remote.py --send \
 2. **Write Operation**:
 ```bash
 python deployment/customer_service_remote.py --send \
-  --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/3893159567722283008 \
+  --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/1818126039411326976 \
   --session_id=YOUR_SESSION_ID \
   --message="Create a new booking for planting service on June 15th, 2025 from 1pm to 4pm"
 ```
@@ -280,7 +301,7 @@ python deployment/customer_service_remote.py --send \
 3. **Update Operation**:
 ```bash
 python deployment/customer_service_remote.py --send \
-  --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/3893159567722283008 \
+  --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/1818126039411326976 \
   --session_id=YOUR_SESSION_ID \
   --message="Update my booking to include special instructions: need help with planting roses"
 ```
@@ -288,7 +309,7 @@ python deployment/customer_service_remote.py --send \
 4. **Query Operation**:
 ```bash
 python deployment/customer_service_remote.py --send \
-  --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/3893159567722283008 \
+  --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/1818126039411326976 \
   --session_id=YOUR_SESSION_ID \
   --message="Show me all my confirmed bookings"
 ```
@@ -296,7 +317,7 @@ python deployment/customer_service_remote.py --send \
 5. **Delete Operation**:
 ```bash
 python deployment/customer_service_remote.py --send \
-  --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/3893159567722283008 \
+  --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/1818126039411326976 \
   --session_id=YOUR_SESSION_ID \
   --message="Please cancel and delete my booking for June 15th"
 ```
@@ -457,13 +478,13 @@ You can check details about your agent deployments using custom scripts:
 ./list_agents.sh --id 6803329351933755392
 
 # Get details for the Customer Service Agent
-./list_agents.sh --id 3893159567722283008
+./list_agents.sh --id 1818126039411326976
 
 # List sessions for the Weather Agent
 ./list_sessions.sh --agent 6803329351933755392
 
 # List sessions for the Customer Service Agent
-./list_sessions.sh --agent 3893159567722283008
+./list_sessions.sh --agent 1818126039411326976
 ```
 
 ## Interactive Testing
@@ -475,7 +496,7 @@ For a more convenient interactive testing experience, you can use the test_custo
 python test_customer_service.py --mode=local --session_id=YOUR_LOCAL_SESSION_ID --interactive
 
 # Interactive remote testing
-python test_customer_service.py --mode=remote --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/3893159567722283008 --session_id=YOUR_SESSION_ID --interactive
+python test_customer_service.py --mode=remote --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/1818126039411326976 --session_id=YOUR_SESSION_ID --interactive
 ```
 
 In interactive mode, you can enter messages one by one and see the responses, making it easier to test a full conversation flow.

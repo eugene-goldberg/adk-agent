@@ -2,6 +2,28 @@
 
 This is a Flask web application that provides a chat interface for interacting with the TruckBuddy Pickup Truck Sharing Agent deployed on Vertex AI.
 
+## Technical Details
+
+### Environment
+- **Python Version**: 3.12.10
+- **Flask Version**: 2.0.0+
+- **Vertex AI SDK Version**: 1.92.0
+- **Google ADK Version**: 0.2.0
+- **Last Updated**: May 2025
+- **Key Dependencies**:
+  - google-cloud-aiplatform[adk,agent_engines]==1.92.0
+  - pydantic-settings==2.8.1
+  - google-cloud-firestore>=2.16.1
+  - flask>=2.0.0
+  - requests>=2.31.0
+  - python-dotenv>=1.0.0
+
+### Deployment Details
+- **Project ID**: pickuptruckapp
+- **Location**: us-central1
+- **Truck Agent Engine ID**: 1369314189046185984 (updated May 2025)
+- **API Communication**: Uses direct REST API with streamQuery endpoint
+
 ## Features
 
 - Chat interface for communicating with the deployed agent

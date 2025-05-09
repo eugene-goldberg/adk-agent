@@ -6,10 +6,23 @@ This document provides information about the deployed Truck Sharing Agent and ho
 
 ✅ **FULLY DEPLOYED** - The Truck Sharing Agent has been successfully deployed to Google Vertex AI Agent Engine and is fully integrated with the Firestore database. The agent is now available for testing and integration with the PickupTruck mobile app.
 
+## Technical Details
+
+### Environment
+- **Python Version**: 3.12.10
+- **Vertex AI SDK Version**: 1.92.0
+- **Google ADK Version**: 0.2.0
+- **Deployment Date**: May 2025
+- **Dependencies**:
+  - google-cloud-aiplatform[adk,agent_engines]==1.92.0
+  - pydantic-settings==2.8.1  
+  - google-cloud-firestore>=2.16.1
+  - requests>=2.31.0
+
 ### Agent Details
 - **Project ID**: pickuptruckapp
 - **Location**: us-central1
-- **Agent Engine ID**: 9202903528392097792
+- **Agent Engine ID**: 1369314189046185984 (updated May 2025)
 - **Display Name**: truck-sharing-agent
 - **Description**: A truck sharing assistant that helps customers book trucks, manage reservations, find suitable vehicles, and check weather conditions for moves.
 

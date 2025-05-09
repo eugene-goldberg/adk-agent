@@ -312,6 +312,7 @@
             <h2>About TruckBuddy</h2>
             <p>TruckBuddy is your personal assistant for finding and booking pickup trucks. Whether you're moving furniture, transporting materials, or just need a truck for a day, TruckBuddy can help you find the right vehicle, check availability, and make bookings.</p>
             <p>Our AI assistant can also provide weather forecasts for your moving dates, help you choose between truck models based on your specific needs, provide pricing information, and manage your bookings in our database.</p>
+            <p><strong>Note:</strong> This application uses the truck-sharing-agent with dynamically discovered resource ID. Loading agent information...</p>
         </div>
         
         <div class="chat-container">
@@ -338,10 +339,15 @@
         <div class="bookings-container">
             <div class="bookings-header">
                 <h2>Your Bookings</h2>
-                <button id="createTestBookingButton" class="create-booking-button">
-                    <span id="createBookingText">Create Test Booking</span>
-                    <span id="createBookingLoader" class="loader hidden"></span>
-                </button>
+                <div style="display: flex; gap: 10px;">
+                    <button id="refreshBookingsButton" style="background-color: #6c757d; color: white; border: none; border-radius: 4px; padding: 8px 15px; cursor: pointer; font-weight: bold;">
+                        Refresh Bookings
+                    </button>
+                    <button id="createTestBookingButton" class="create-booking-button">
+                        <span id="createBookingText">Create Test Booking</span>
+                        <span id="createBookingLoader" class="loader hidden"></span>
+                    </button>
+                </div>
             </div>
             
             <div id="bookingsList">
@@ -354,7 +360,7 @@
     <script>
         // Global variables
         let sessionId = null;
-        let resourceId = "9202903528392097792"; // Default resource ID for the truck sharing agent
+        let resourceId = null; // Will be populated dynamically from agent discovery
         
         // DOM elements
         const chatMessages = document.getElementById('chatMessages');
@@ -368,6 +374,15 @@
         const createBookingLoader = document.getElementById('createBookingLoader');
         const bookingsList = document.getElementById('bookingsList');
         const noBookingsMessage = document.getElementById('noBookingsMessage');
+        
+        // Debug element availability
+        console.log('DOM elements found:',
+            'chatMessages:', !!chatMessages,
+            'messageInput:', !!messageInput,
+            'sendButton:', !!sendButton,
+            'bookingsList:', !!bookingsList,
+            'noBookingsMessage:', !!noBookingsMessage
+        );
         
         // Helper functions
         function formatTime(date) {
@@ -452,6 +467,13 @@
         // API functions
         async function createSession() {
             try {
+                // Check if resourceId is available
+                if (!resourceId) {
+                    console.error('No resourceId available. Agent discovery may have failed.');
+                    addMessage("Sorry, I couldn't establish a connection because no agent was found. Please try refreshing the page.", false);
+                    return;
+                }
+                
                 const response = await fetch('/api/truck/create_session', {
                     method: 'POST',
                     headers: {
@@ -497,6 +519,23 @@
                 // Show typing indicator
                 showTypingIndicator();
                 
+                // Check if we have the required IDs
+                if (!resourceId || !sessionId) {
+                    removeTypingIndicator();
+                    addMessage("Sorry, I can't process your message because the connection to the agent hasn't been established. Please refresh the page and try again.", false);
+                    
+                    sendButtonText.classList.remove('hidden');
+                    sendButtonLoader.classList.add('hidden');
+                    sendButton.disabled = false;
+                    messageInput.disabled = false;
+                    return;
+                }
+                
+                // Check if this might be a booking request
+                const bookingKeywords = ['book', 'rent', 'reserve', 'truck', 'schedule', 'vehicle'];
+                const messageContainsBookingTerms = bookingKeywords.some(keyword => message.toLowerCase().includes(keyword));
+                const shouldAttemptBookingCreation = messageContainsBookingTerms;
+                
                 // Send message to API
                 const response = await fetch('/api/truck/send_message', {
                     method: 'POST',
@@ -506,7 +545,8 @@
                     body: JSON.stringify({
                         resource_id: resourceId,
                         session_id: sessionId,
-                        message: message
+                        message: message,
+                        auto_create_booking: shouldAttemptBookingCreation
                     })
                 });
                 
@@ -519,10 +559,12 @@
                     // Add agent response to chat
                     addMessage(data.response, false);
                     
-                    // If booking was created, refresh bookings list
-                    if (data.response.toLowerCase().includes('booking') && 
+                    // If booking was created based on the message, refresh bookings list
+                    if (data.booking_created || 
+                        (data.response.toLowerCase().includes('booking') && 
                         (data.response.toLowerCase().includes('confirmed') || 
-                         data.response.toLowerCase().includes('created'))) {
+                         data.response.toLowerCase().includes('created')))) {
+                        console.log('Booking detected, refreshing bookings list');
                         fetchBookings();
                     }
                 } else {
@@ -544,27 +586,41 @@
         
         async function fetchBookings() {
             try {
+                console.log('Fetching bookings...');
                 const response = await fetch('/api/truck/get_bookings');
+                console.log('Response status:', response.status);
                 const data = await response.json();
+                console.log('Bookings data:', data);
                 
                 if (data.success && data.bookings && data.bookings.length > 0) {
+                    console.log(`Found ${data.bookings.length} bookings`);
                     // Clear existing bookings
                     bookingsList.innerHTML = '';
                     
                     // Add bookings to the list
                     data.bookings.forEach(booking => {
-                        bookingsList.appendChild(renderBooking(booking));
+                        const bookingElement = renderBooking(booking);
+                        bookingsList.appendChild(bookingElement);
+                        console.log(`Added booking ${booking.id} to the list`);
                     });
                     
                     // Hide no bookings message
                     noBookingsMessage.style.display = 'none';
                 } else {
+                    console.log('No bookings found or error in response');
                     // Show no bookings message
                     bookingsList.innerHTML = '';
                     bookingsList.appendChild(noBookingsMessage);
                 }
             } catch (error) {
                 console.error('Error fetching bookings:', error);
+                // Add error to the UI for debugging
+                const errorElement = document.createElement('div');
+                errorElement.classList.add('error');
+                errorElement.textContent = `Failed to fetch bookings: ${error.message}`;
+                bookingsList.innerHTML = '';
+                bookingsList.appendChild(errorElement);
+                bookingsList.appendChild(noBookingsMessage);
             }
         }
         
@@ -574,12 +630,23 @@
                 createBookingLoader.classList.remove('hidden');
                 createTestBookingButton.disabled = true;
                 
+                // Check if we have the required resource ID
+                if (!resourceId) {
+                    createBookingText.classList.remove('hidden');
+                    createBookingLoader.classList.add('hidden');
+                    createTestBookingButton.disabled = false;
+                    
+                    addMessage("Sorry, I can't create a test booking because the connection to the agent hasn't been established. Please refresh the page and try again.", false);
+                    return;
+                }
+                
                 const response = await fetch('/api/truck/test_booking', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
+                        resource_id: resourceId,
                         message: "I need a truck to move furniture this weekend"
                     })
                 });
@@ -627,10 +694,82 @@
         
         createTestBookingButton.addEventListener('click', createTestBooking);
         
+        // Add listener for the refresh bookings button
+        const refreshBookingsButton = document.getElementById('refreshBookingsButton');
+        if (refreshBookingsButton) {
+            refreshBookingsButton.addEventListener('click', () => {
+                console.log('Manual refresh of bookings requested');
+                fetchBookings();
+            });
+        } else {
+            console.error('Refresh bookings button not found in DOM');
+        }
+        
+        // Agent discovery function
+        async function discoverAgents() {
+            try {
+                // Update the info panel to show loading state
+                const infoPanel = document.querySelector('.info-panel p:last-child');
+                infoPanel.innerHTML = '<strong>Note:</strong> Discovering available truck-sharing agents... <span class="loader"></span>';
+                
+                // Fetch available agents
+                const response = await fetch('/api/discovery/discover', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.agents && data.agents.length > 0) {
+                    // Look for truck-sharing-agent
+                    const truckAgent = data.agents.find(agent => agent.agent_type === "truck-sharing-agent");
+                    
+                    if (truckAgent) {
+                        resourceId = truckAgent.resource_id;
+                        
+                        // Update the info panel with the discovered agent info
+                        infoPanel.innerHTML = `<strong>Note:</strong> Connected to truck-sharing-agent (ID: <code>${truckAgent.id}</code>).`;
+                        
+                        // Now that we have the resource ID, create a session
+                        createSession();
+                        fetchBookings();
+                        return true;
+                    } else {
+                        infoPanel.innerHTML = '<strong>Error:</strong> No truck-sharing-agent found. Please refresh or contact support.';
+                        console.error('No truck-sharing-agent found in agent discovery');
+                        return false;
+                    }
+                } else {
+                    infoPanel.innerHTML = '<strong>Error:</strong> Failed to discover agents. Please refresh or contact support.';
+                    console.error('Failed to discover agents:', data.error || 'Unknown error');
+                    return false;
+                }
+            } catch (error) {
+                console.error('Error in discoverAgents:', error);
+                const infoPanel = document.querySelector('.info-panel p:last-child');
+                infoPanel.innerHTML = '<strong>Error:</strong> Failed to connect to agent discovery service. Please refresh or contact support.';
+                return false;
+            }
+        }
+
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
-            createSession();
+            console.log('DOM content loaded - initializing application');
+            
+            // Directly fetch bookings first, regardless of agent discovery
+            console.log('Directly fetching bookings at startup');
             fetchBookings();
+            
+            // Then discover available agents
+            discoverAgents().then(success => {
+                if (!success) {
+                    console.warn('Agent discovery failed, chat functionality will not work properly');
+                    // Display error message in chat
+                    addMessage("Agent discovery failed. Please refresh the page or contact technical support.", false);
+                }
+            });
         });
     </script>
 </body>

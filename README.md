@@ -8,6 +8,28 @@ A collection of Python-based agents using Google's Agent Development Kit (ADK) a
 2. **Weather Agent** - An agent that provides weather forecasts for locations around the world
 3. **Customer Service Agent** - An agent that helps customers with product recommendations, order management, and service scheduling for Cymbal Home & Garden
 
+## Technical Details
+
+### Environment Specifications
+- **Python Version**: 3.12.10 (required for Vertex AI Agent Engine)
+- **Vertex AI SDK Version**: 1.92.0
+- **Google ADK Version**: 0.2.0
+- **Last Updated**: May 2025
+
+### Key Dependencies
+- google-cloud-aiplatform[adk,agent_engines]==1.92.0
+- google-adk>=0.2.0
+- pydantic>=2.0.0
+- pydantic-settings==2.8.1
+- google-cloud-firestore>=2.16.1
+- requests>=2.31.0
+- python-dotenv>=1.0.0
+- flask>=2.0.0
+
+### Production Deployment IDs
+- **Truck Sharing Agent**: projects/843958766652/locations/us-central1/reasoningEngines/1369314189046185984
+- **Customer Service Agent**: projects/843958766652/locations/us-central1/reasoningEngines/2753748861997547520
+
 ## Prerequisites
 
 - Python 3.12+

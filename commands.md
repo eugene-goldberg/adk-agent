@@ -175,28 +175,28 @@ The Firestore integration supports the following operations:
 
 ```bash
 # Create a session
-poetry run deploy-cs-remote --create_session --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/3893159567722283008
+poetry run deploy-cs-remote --create_session --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/1818126039411326976
 
 # List all bookings
-poetry run deploy-cs-remote --send --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/3893159567722283008 --session_id=YOUR_SESSION_ID --message="Show me all bookings in the Firestore database"
+poetry run deploy-cs-remote --send --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/1818126039411326976 --session_id=YOUR_SESSION_ID --message="Show me all bookings in the Firestore database"
 
 # Create a booking
-poetry run deploy-cs-remote --send --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/3893159567722283008 --session_id=YOUR_SESSION_ID --message="Create a new booking for planting service on June 15th, 2025 from 2pm to 5pm"
+poetry run deploy-cs-remote --send --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/1818126039411326976 --session_id=YOUR_SESSION_ID --message="Create a new booking for planting service on June 15th, 2025 from 2pm to 5pm"
 
 # Store a booking with specific ID
-poetry run deploy-cs-remote --send --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/3893159567722283008 --session_id=YOUR_SESSION_ID --message="Store this booking in the database with ID garden-planting-june-2025"
+poetry run deploy-cs-remote --send --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/1818126039411326976 --session_id=YOUR_SESSION_ID --message="Store this booking in the database with ID garden-planting-june-2025"
 
 # Read a specific booking
-poetry run deploy-cs-remote --send --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/3893159567722283008 --session_id=YOUR_SESSION_ID --message="Get the details of booking garden-planting-june-2025"
+poetry run deploy-cs-remote --send --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/1818126039411326976 --session_id=YOUR_SESSION_ID --message="Get the details of booking garden-planting-june-2025"
 
 # Update a booking
-poetry run deploy-cs-remote --send --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/3893159567722283008 --session_id=YOUR_SESSION_ID --message="Update my booking to include special instructions: need help with planting roses"
+poetry run deploy-cs-remote --send --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/1818126039411326976 --session_id=YOUR_SESSION_ID --message="Update my booking to include special instructions: need help with planting roses"
 
 # Query bookings by status
-poetry run deploy-cs-remote --send --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/3893159567722283008 --session_id=YOUR_SESSION_ID --message="Show me all my confirmed bookings"
+poetry run deploy-cs-remote --send --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/1818126039411326976 --session_id=YOUR_SESSION_ID --message="Show me all my confirmed bookings"
 
 # Delete a booking
-poetry run deploy-cs-remote --send --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/3893159567722283008 --session_id=YOUR_SESSION_ID --message="Please cancel and delete my booking for June 15th"
+poetry run deploy-cs-remote --send --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/1818126039411326976 --session_id=YOUR_SESSION_ID --message="Please cancel and delete my booking for June 15th"
 ```
 
 ## Weather Integration
@@ -216,13 +216,13 @@ OPENWEATHERMAP_API_KEY=your_api_key_here
 
 ```bash
 # Get basic weather forecast
-poetry run deploy-cs-remote --send --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/3893159567722283008 --session_id=YOUR_SESSION_ID --message="What's the weather forecast for Las Vegas for the next 3 days?"
+poetry run deploy-cs-remote --send --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/1818126039411326976 --session_id=YOUR_SESSION_ID --message="What's the weather forecast for Las Vegas for the next 3 days?"
 
 # Get weather-based gardening advice
-poetry run deploy-cs-remote --send --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/3893159567722283008 --session_id=YOUR_SESSION_ID --message="I'm planning to plant some drought-resistant plants this weekend. Will the weather be suitable, and what do you recommend?"
+poetry run deploy-cs-remote --send --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/1818126039411326976 --session_id=YOUR_SESSION_ID --message="I'm planning to plant some drought-resistant plants this weekend. Will the weather be suitable, and what do you recommend?"
 
 # Get climate-appropriate plant suggestions
-poetry run deploy-cs-remote --send --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/3893159567722283008 --session_id=YOUR_SESSION_ID --message="Which flowers would thrive in Phoenix with the current weather conditions?"
+poetry run deploy-cs-remote --send --resource_id=projects/843958766652/locations/us-central1/reasoningEngines/1818126039411326976 --session_id=YOUR_SESSION_ID --message="Which flowers would thrive in Phoenix with the current weather conditions?"
 ```
 
 ## Custom Management Scripts

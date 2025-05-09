@@ -53,13 +53,16 @@ def create() -> None:
         enable_tracing=True,
     )
 
-    # Now deploy to Agent Engine
+    # Now deploy to Agent Engine using the latest SDK pattern
     try:
         print("Starting deployment, this may take several minutes...")
+        print(f"Using Vertex AI SDK version: {vertexai.__version__ if hasattr(vertexai, '__version__') else 'unknown'}")
+        
+        # Use the latest SDK pattern
         remote_app = agent_engines.create(
             agent_engine=app,
             requirements=[
-                "google-cloud-aiplatform[adk,agent_engines]",
+                "google-cloud-aiplatform[adk,agent_engines]==1.92.0",
                 "pydantic-settings==2.8.1",
                 "google-cloud-firestore>=2.16.1",
                 "requests>=2.31.0",
@@ -126,17 +129,97 @@ def get_session(resource_id: str, user_id: str, session_id: str) -> None:
 
 def send_message(resource_id: str, user_id: str, session_id: str, message: str) -> None:
     """Sends a message to the deployed agent."""
-    remote_app = agent_engines.get(resource_id)
-
     print(f"Sending message to session {session_id}:")
     print(f"Message: {message}")
     print("\nResponse:")
-    for event in remote_app.stream_query(
-        user_id=user_id,
-        session_id=session_id,
-        message=message,
-    ):
-        print(event)
+    
+    # Print SDK versions for debugging
+    import vertexai
+    print(f"Vertex AI SDK version: {vertexai.__version__ if hasattr(vertexai, '__version__') else 'unknown'}")
+    print(f"Python version: {sys.version}")
+    
+    try:
+        # Get the remote app using the updated SDK
+        print("Getting remote app...")
+        remote_app = agent_engines.get(resource_id)
+        
+        # Standard API approach - try stream_query first as the preferred method
+        print("Using stream_query method...")
+        for event in remote_app.stream_query(
+            user_id=user_id,
+            session_id=session_id,
+            message=message,
+        ):
+            print(event)
+        return
+            
+    except AttributeError as attr_err:
+        print(f"stream_query not available: {attr_err}")
+        # Fall back to REST API approach if stream_query is not available
+        print("Falling back to REST API approach...")
+        
+        import requests
+        import json
+        import google.auth
+        import google.auth.transport.requests
+        
+        # Get credentials and project ID
+        credentials, project = google.auth.default(scopes=["https://www.googleapis.com/auth/cloud-platform"])
+        auth_req = google.auth.transport.requests.Request()
+        credentials.refresh(auth_req)
+        token = credentials.token
+        
+        location = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
+        project_id = os.getenv("GOOGLE_CLOUD_PROJECT", "pickuptruckapp")
+        
+        # Construct the API endpoint
+        endpoint = f"https://{location}-aiplatform.googleapis.com/v1/projects/{project_id}/locations/{location}/agents/{resource_id}/sessions/{session_id}:query"
+        print(f"Using API endpoint: {endpoint}")
+        
+        # Prepare the request payload
+        payload = {
+            "messages": [
+                {"author": "user", "content": message}
+            ],
+            "enableOrchestration": True
+        }
+        
+        # Set headers
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json"
+        }
+        
+        # Send the request
+        print("Sending API request...")
+        response = requests.post(endpoint, headers=headers, json=payload)
+        
+        if response.status_code == 200:
+            print("API call successful!")
+            result = response.json()
+            print(f"API Response: {json.dumps(result, indent=2)}")
+            
+            # Extract the actual response text
+            text_response = "No text found in response"
+            if "messages" in result:
+                for msg in result.get("messages", []):
+                    if msg.get("author") != "user":  # Only show non-user messages
+                        text_response = msg.get("content", {}).get("parts", [{}])[0].get("text", "No content")
+                        print(f"Response: {text_response}")
+        else:
+            print(f"API call failed with status code: {response.status_code}")
+            print(f"Error response: {response.text}")
+            raise Exception(f"API call failed: {response.status_code} - {response.text}")
+        
+    except Exception as e:
+        print(f"Error sending message: {e}")
+        print("\nDiagnostic information:")
+        print(f"- Resource ID: {resource_id}")
+        print(f"- Session ID: {session_id}")
+        print(f"- User ID: {user_id}")
+        
+        # Re-raise the exception to ensure proper error handling
+        raise
 
 
 def main(argv=None):

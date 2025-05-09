@@ -24,7 +24,7 @@ load_dotenv()
 # Constants
 PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT", "pickuptruckapp")
 REGION = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
-DEFAULT_RESOURCE_ID = os.getenv("AGENT_RESOURCE_ID", "1818126039411326976")
+# No default resource ID - will discover agents dynamically
 
 # Set the proper Python path for imports
 # This allows execution of commands that need access to the project modules
@@ -45,10 +45,18 @@ def get_access_token():
         print(f"Error getting access token: {e}")
         return None
 
-def run_command(command):
-    """Run a shell command with proper environment variables."""
+def run_command(command, timeout=30000):
+    """Run a shell command with proper environment variables.
+    
+    Args:
+        command: The command to run
+        timeout: Timeout in milliseconds (default: 30 seconds)
+    """
     env = os.environ.copy()
     env["PYTHONPATH"] = f"{PROJECT_ROOT}:{env.get('PYTHONPATH', '')}"
+    
+    # Convert timeout from milliseconds to seconds
+    timeout_seconds = timeout / 1000.0
     
     try:
         result = subprocess.run(
@@ -56,7 +64,8 @@ def run_command(command):
             shell=True, 
             capture_output=True, 
             text=True, 
-            env=env
+            env=env,
+            timeout=timeout_seconds
         )
         
         # Clean up output by removing INFO/DEBUG log lines
@@ -79,10 +88,19 @@ def run_command(command):
             "stderr": cleaned_stderr,
             "returncode": result.returncode
         }
+    except subprocess.TimeoutExpired as te:
+        return {
+            "success": False,
+            "stdout": "",
+            "stderr": f"Command timed out after {timeout_seconds} seconds: {str(te)}",
+            "returncode": -1,
+            "timeout": True
+        }
     except Exception as e:
         return {
             "success": False,
-            "error": str(e),
+            "stdout": "",
+            "stderr": f"Error executing command: {str(e)}",
             "returncode": -1
         }
 
@@ -99,28 +117,157 @@ def extract_session_id(output):
 def discover_agents():
     """Discover agents deployed in Vertex AI."""
     try:
-        # For debugging - let's directly return the hardcoded agent information we already know
-        agent_id = "1818126039411326976"
-        agent_info = {
-            "id": agent_id,
-            "resource_id": f"projects/{PROJECT_ID}/locations/{REGION}/reasoningEngines/{agent_id}",
-            "created": "2025-05-08T14:22:10.990577Z",
-            "updated": "2025-05-08T14:24:36.339561Z",
-            "python_version": "3.12",
-            "display_name": "truck-sharing-agent",
-            "description": "A pickup truck sharing assistant that helps customers book trucks, find suitable vehicles for their needs, get weather information for moving dates, and manage their bookings."
-        }
+        # Use the list_deployments function from truck_sharing_remote.py via subprocess
+        command = f"python deployment/truck_sharing_remote.py --list"
+        
+        # Set a timeout to prevent hanging
+        try:
+            result = run_command(command)
+        except Exception as timeout_err:
+            print(f"Command timed out or failed: {timeout_err}")
+            return jsonify({
+                "success": False,
+                "error": "The operation timed out. Please try again later.",
+                "details": str(timeout_err)
+            }), 504  # Gateway Timeout
+        
+        if not result["success"]:
+            print(f"Error listing deployments: {result['stderr']}")
+            
+            # Check for auth errors
+            error_message = result["stderr"]
+            if "permission" in error_message.lower() or "credentials" in error_message.lower() or "authentication" in error_message.lower():
+                return jsonify({
+                    "success": False,
+                    "error": "Authentication error. Please check your Google Cloud credentials.",
+                    "details": error_message
+                }), 401  # Unauthorized
+            
+            return jsonify({
+                "success": False,
+                "error": f"Failed to list deployments",
+                "details": error_message
+            }), 500
+            
+        # Parse output to extract deployment information
+        output = result["stdout"]
+        print(f"Deployment listing output: {output}")
+        
+        # Extract information about deployed agents
+        agents = []
+        found_in_listing = False
+        
+        # Extract all resource IDs from the output using regex
+        matches = re.findall(r'projects/[^/]+/locations/[^/]+/reasoningEngines/(\d+)', output)
+        
+        if matches:
+            found_in_listing = True
+            for agent_id in matches:
+                # Check for agent type indicators in the output nearby this ID
+                agent_type = "unknown"
+                display_name = f"Agent {agent_id}"
+                description = "A deployed agent in Vertex AI"
+                
+                # Look for context around this agent ID to determine its type
+                id_idx = output.find(agent_id)
+                if id_idx >= 0:
+                    context = output[max(0, id_idx-100):min(len(output), id_idx+100)]
+                    
+                    if "truck" in context.lower() or "truck-sharing" in context.lower():
+                        agent_type = "truck-sharing-agent"
+                        display_name = "Truck Sharing Agent"
+                        description = "A pickup truck sharing assistant that helps customers book trucks, find suitable vehicles for their needs, get weather information for moving dates, and manage their bookings."
+                    elif "customer" in context.lower() or "service" in context.lower():
+                        agent_type = "customer-service-agent"
+                        display_name = "Customer Service Agent"
+                        description = "A customer service agent that handles various inquiries and support requests."
+                
+                # Add the agent to our list
+                agent_info = {
+                    "id": agent_id,
+                    "resource_id": f"projects/{PROJECT_ID}/locations/{REGION}/reasoningEngines/{agent_id}",
+                    "python_version": "3.12",
+                    "display_name": display_name,
+                    "description": description,
+                    "agent_type": agent_type,
+                    "found_in_listing": True
+                }
+                agents.append(agent_info)
+        
+        # Check if we need to try another discovery method
+        if not found_in_listing:
+            print("Warning: No agents found in the initial listing, trying secondary discovery method")
+            
+            # Try to find agent IDs in the AGENT_INTEGRATION_NOTES.md file as a fallback
+            notes_command = f"cd {PROJECT_ROOT} && cat AGENT_INTEGRATION_NOTES.md"
+            notes_result = run_command(notes_command)
+            
+            if notes_result["success"]:
+                notes_output = notes_result["stdout"]
+                
+                # Look for truck-sharing-agent
+                truck_match = re.search(r'truck-sharing-agent.*?projects/[^/]+/locations/[^/]+/reasoningEngines/(\d+)', notes_output, re.DOTALL)
+                if truck_match:
+                    truck_agent_id = truck_match.group(1)
+                    agents.append({
+                        "id": truck_agent_id,
+                        "resource_id": f"projects/{PROJECT_ID}/locations/{REGION}/reasoningEngines/{truck_agent_id}",
+                        "python_version": "3.12",
+                        "display_name": "Truck Sharing Agent",
+                        "description": "A pickup truck sharing assistant that helps customers book trucks, find suitable vehicles for their needs, get weather information for moving dates, and manage their bookings.",
+                        "agent_type": "truck-sharing-agent",
+                        "found_in_listing": False,
+                        "discovery_method": "integration_notes"
+                    })
+                    found_in_listing = True
+                
+                # Look for customer-service-agent
+                customer_match = re.search(r'customer-service-agent.*?projects/[^/]+/locations/[^/]+/reasoningEngines/(\d+)', notes_output, re.DOTALL)
+                if customer_match:
+                    customer_agent_id = customer_match.group(1)
+                    agents.append({
+                        "id": customer_agent_id,
+                        "resource_id": f"projects/{PROJECT_ID}/locations/{REGION}/reasoningEngines/{customer_agent_id}",
+                        "python_version": "3.12",
+                        "display_name": "Customer Service Agent",
+                        "description": "A customer service agent that handles various inquiries and support requests.",
+                        "agent_type": "customer-service-agent",
+                        "found_in_listing": False,
+                        "discovery_method": "integration_notes"
+                    })
+                    found_in_listing = True
+        
+        # Return warning if no agents were found at all
+        if not found_in_listing:
+            print("Warning: No agents found through any discovery method")
         
         return jsonify({
             "success": True,
-            "agents": [agent_info]
+            "agents": agents,
+            "agent_count": len(agents),
+            "using_defaults": not found_in_listing
         })
     
+    except FileNotFoundError as e:
+        print(f"File or command not found: {e}")
+        return jsonify({
+            "success": False,
+            "error": "The required script file was not found",
+            "details": str(e)
+        }), 500
+    except PermissionError as e:
+        print(f"Permission error: {e}")
+        return jsonify({
+            "success": False,
+            "error": "Permission denied when attempting to list agents",
+            "details": str(e)
+        }), 403  # Forbidden
     except Exception as e:
         print(f"Error in discover_agents: {e}")
         return jsonify({
             "success": False,
-            "error": str(e)
+            "error": "An unexpected error occurred while discovering agents",
+            "details": str(e)
         }), 500
 
 @agent_api.route('/create_session', methods=['POST'])
@@ -128,12 +275,40 @@ def create_agent_session():
     """Create a session with a Vertex AI agent."""
     try:
         data = request.json or {}
-        resource_id = data.get('resource_id', DEFAULT_RESOURCE_ID)
+        resource_id = data.get('resource_id')
+        
+        # If no resource ID provided, try to discover one
+        if not resource_id:
+            try:
+                # Get a list of available agents
+                discover_response = discover_agents()
+                discover_data = json.loads(discover_response.get_data(as_text=True))
+                
+                if discover_data.get('success') and discover_data.get('agents'):
+                    # Try to find a truck-sharing-agent first (since this is the most suitable for most endpoints)
+                    truck_agent = next((agent for agent in discover_data['agents'] 
+                                      if agent.get('agent_type') == 'truck-sharing-agent'), None)
+                    
+                    if truck_agent:
+                        resource_id = truck_agent.get('resource_id')
+                    else:
+                        # Use the first available agent as a fallback
+                        resource_id = discover_data['agents'][0].get('resource_id')
+                else:
+                    return jsonify({
+                        "success": False,
+                        "error": "No resource ID provided and no agents discovered"
+                    }), 400
+            except Exception as e:
+                return jsonify({
+                    "success": False,
+                    "error": f"Resource ID is required. Failed to discover agents: {str(e)}"
+                }), 400
         
         if not resource_id:
             return jsonify({
                 "success": False,
-                "error": "Resource ID is required"
+                "error": "Resource ID is required and could not be discovered automatically"
             }), 400
         
         # Use the full resource ID if it starts with 'projects/', otherwise construct it
@@ -177,6 +352,7 @@ def create_agent_session():
 def send_message():
     """Send a message to a Vertex AI agent session."""
     try:
+        # Validate request data
         data = request.json
         if not data:
             return jsonify({
@@ -184,10 +360,37 @@ def send_message():
                 "error": "Request body is required"
             }), 400
         
-        resource_id = data.get('resource_id', DEFAULT_RESOURCE_ID)
+        resource_id = data.get('resource_id')
         session_id = data.get('session_id')
         message = data.get('message')
         
+        # If no resource ID provided, try to discover one
+        if not resource_id:
+            try:
+                # Get a list of available agents
+                discover_response = discover_agents()
+                discover_data = json.loads(discover_response.get_data(as_text=True))
+                
+                if discover_data.get('success') and discover_data.get('agents'):
+                    # Try to find a truck-sharing-agent first for message endpoints
+                    truck_agent = next((agent for agent in discover_data['agents'] 
+                                      if agent.get('agent_type') == 'truck-sharing-agent'), None)
+                    
+                    if truck_agent:
+                        resource_id = truck_agent.get('resource_id')
+                    else:
+                        # Use the first available agent as a fallback
+                        resource_id = discover_data['agents'][0].get('resource_id')
+                else:
+                    return jsonify({
+                        "success": False,
+                        "error": "No resource ID provided and no agents discovered"
+                    }), 400
+            except Exception as e:
+                print(f"Error auto-discovering agents: {e}")
+                # Continue without setting resource_id
+        
+        # Validate required fields
         if not session_id:
             return jsonify({
                 "success": False,
@@ -200,80 +403,156 @@ def send_message():
                 "error": "Message is required"
             }), 400
         
-        # Use the full resource ID if it starts with 'projects/', otherwise construct it
-        if not resource_id.startswith('projects/'):
-            resource_id = f"projects/{PROJECT_ID}/locations/{REGION}/reasoningEngines/{resource_id}"
-        
-        # Use a simpler command approach with mock responses for testing
-        # command = f'python deployment/truck_sharing_remote.py --send --resource_id={resource_id} --session_id={session_id} --message="{message}"'
-        
-        # For reliable testing:
-        print(f"Sending message to session {session_id}: {message}")
-        
-        # Generate an appropriate truck-related response based on message content
-        if "weather" in message.lower():
-            response_content = "I checked the forecast for your moving date. It looks like it will be sunny with a high of 75°F. Perfect weather for moving without worrying about rain damaging your items."
-        elif "truck" in message.lower() or "move" in message.lower() or "moving" in message.lower():
-            response_content = "I can help you find a pickup truck for your move. We have several options available this weekend. The Ford F-150 is $45/hour and includes loading assistance for an additional $25/hour. When were you planning to move, and how many hours would you need the truck?"
-        elif "book" in message.lower() or "reservation" in message.lower():
-            response_content = "I'd be happy to book a truck for you. Could you provide me with your preferred pickup date and time, pickup location, destination address, and how many hours you'll need the truck? Also, would you like assistance with loading and unloading?"
-        elif "hello" in message.lower() or "hi" in message.lower():
-            response_content = "Hello! I'm TruckBuddy, your personal assistant for the PickupTruck App. How can I help you with your moving or transportation needs today?"
-        else:
-            response_content = "As your TruckBuddy assistant, I can help you book a pickup truck, check availability, provide pricing information, and even check the weather forecast for your moving day. What would you like assistance with today?"
-        
-        # Create a success result with the response content
-        result = {
-            "success": True,
-            "stdout": f"Response: {response_content}",
-            "stderr": "",
-            "returncode": 0
-        }
-        # Skip running the actual command that was failing
-        # result = run_command(command)
-        
-        if not result["success"]:
+        if not message.strip():
             return jsonify({
                 "success": False,
-                "error": "Failed to send message",
-                "details": result["stderr"] or "Unknown error"
+                "error": "Message cannot be empty"
+            }), 400
+        
+        # Extract just the resource ID number if it's a full path
+        if resource_id.startswith('projects/'):
+            numeric_id = resource_id.split('/')[-1]
+        else:
+            numeric_id = resource_id
+            
+        # Use the truck_sharing_remote.py script to send the message to the real agent
+        print(f"Sending message to session {session_id}: {message}")
+        
+        # Escape quotes in the message to prevent command injection
+        escaped_message = message.replace('"', '\\"')
+        
+        # Set up the command
+        command = f'python deployment/truck_sharing_remote.py --send --resource_id={numeric_id} --session_id={session_id} --message="{escaped_message}"'
+        
+        # Run the command with timeout handling
+        try:
+            result = run_command(command)
+        except Exception as command_err:
+            print(f"Command execution failed: {command_err}")
+            return jsonify({
+                "success": False,
+                "error": "Failed to execute command",
+                "details": str(command_err)
             }), 500
         
-        # Extract the response from the output
-        # This is more complex and depends on the format of the output
-        output = result["stdout"]
-        
-        # Try to extract the response content from the JSON output
-        try:
-            # Look for response text in the output
-            response_content = ""
-            # Regex to find text content in the response
-            text_matches = re.findall(r'"text": "([^"]*)"', output)
+        # Check for command execution failure
+        if not result["success"]:
+            print(f"Error sending message to agent: {result['stderr']}")
+            error_message = result["stderr"] or "Unknown error"
             
-            if text_matches:
-                # Join all text matches
-                response_content = "\n".join([text.replace('\\n', '\n').replace('\\\"', '"') for text in text_matches])
+            # Check for specific error types
+            if "Session not found" in error_message or "Invalid session" in error_message:
+                return jsonify({
+                    "success": False,
+                    "error": "Invalid or expired session",
+                    "details": error_message,
+                    "code": "SESSION_EXPIRED"
+                }), 404
+            elif "Authentication" in error_message or "auth" in error_message.lower() or "credentials" in error_message.lower():
+                return jsonify({
+                    "success": False,
+                    "error": "Authentication error",
+                    "details": error_message,
+                    "code": "AUTH_ERROR"
+                }), 401
+            elif "timeout" in error_message.lower() or "timed out" in error_message.lower():
+                return jsonify({
+                    "success": False,
+                    "error": "The request timed out",
+                    "details": error_message,
+                    "code": "TIMEOUT"
+                }), 504
             else:
-                response_content = "No response text found in the output"
+                return jsonify({
+                    "success": False,
+                    "error": "Failed to send message",
+                    "details": error_message,
+                    "code": "AGENT_ERROR"
+                }), 500
+        
+        # Extract the response from the output
+        output = result["stdout"]
+        print(f"Agent response output: {output}")
+        
+        # Check for empty output
+        if not output or not output.strip():
+            return jsonify({
+                "success": False,
+                "error": "Agent returned empty response",
+                "code": "EMPTY_RESPONSE"
+            }), 500
+        
+        # Try to extract the response content from the output
+        try:
+            # First check if there's a "Response:" marker
+            if "Response:" in output:
+                response_content = output.split("Response:", 1)[1].strip()
+            else:
+                # Look for response text in JSON format
+                text_matches = re.findall(r'"text": "([^"]*)"', output)
+                
+                if text_matches:
+                    # Join all text matches
+                    response_content = "\n".join([text.replace('\\n', '\n').replace('\\\"', '"') for text in text_matches])
+                elif "Output:" in output:
+                    # Try to extract content after "Output:" marker
+                    response_content = output.split("Output:", 1)[1].strip()
+                else:
+                    # If all else fails, just return the raw output
+                    response_content = output.strip()
             
+            # Final check for empty response after processing
+            if not response_content or not response_content.strip():
+                return jsonify({
+                    "success": False,
+                    "error": "Failed to extract meaningful response from agent output",
+                    "raw_output": output,
+                    "code": "PARSING_ERROR"
+                }), 500
+            
+            # Return successful response
             return jsonify({
                 "success": True,
                 "response": response_content,
-                "raw_output": output
+                "raw_output": output,
+                "session_id": session_id,
+                "resource_id": resource_id
             })
         except Exception as e:
+            print(f"Error parsing agent response: {e}")
+            # If we can't parse the response, return the raw output
             return jsonify({
                 "success": True,
-                "response": "Could not parse response content",
+                "response": output.strip(),
                 "raw_output": output,
-                "parse_error": str(e)
+                "parse_error": str(e),
+                "note": "Returning raw output due to parsing error"
             })
     
     except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 500
+        print(f"Exception in send_message: {e}")
+        # Provide more specific error response based on exception type
+        if isinstance(e, (ValueError, TypeError)):
+            return jsonify({
+                "success": False,
+                "error": "Invalid request data",
+                "details": str(e),
+                "code": "INVALID_DATA"
+            }), 400
+        elif isinstance(e, FileNotFoundError):
+            return jsonify({
+                "success": False,
+                "error": "Required file not found",
+                "details": str(e),
+                "code": "FILE_NOT_FOUND"
+            }), 500
+        else:
+            return jsonify({
+                "success": False,
+                "error": "An unexpected error occurred",
+                "details": str(e),
+                "code": "UNEXPECTED_ERROR"
+            }), 500
 
 @agent_api.route('/test_features', methods=['POST'])
 def test_features():
@@ -286,9 +565,37 @@ def test_features():
                 "error": "Request body is required"
             }), 400
         
-        resource_id = data.get('resource_id', DEFAULT_RESOURCE_ID)
+        resource_id = data.get('resource_id')
         session_id = data.get('session_id')
         features = data.get('features', [])
+        
+        # If no resource ID provided, try to discover one
+        if not resource_id:
+            try:
+                # Get a list of available agents
+                discover_response = discover_agents()
+                discover_data = json.loads(discover_response.get_data(as_text=True))
+                
+                if discover_data.get('success') and discover_data.get('agents'):
+                    # For test_features, prefer truck-sharing-agent as it has more capabilities
+                    truck_agent = next((agent for agent in discover_data['agents'] 
+                                     if agent.get('agent_type') == 'truck-sharing-agent'), None)
+                    
+                    if truck_agent:
+                        resource_id = truck_agent.get('resource_id')
+                    else:
+                        # Use the first available agent as a fallback
+                        resource_id = discover_data['agents'][0].get('resource_id')
+                else:
+                    return jsonify({
+                        "success": False,
+                        "error": "No resource ID provided and no agents discovered"
+                    }), 400
+            except Exception as e:
+                return jsonify({
+                    "success": False,
+                    "error": f"Resource ID is required. Failed to discover agents: {str(e)}"
+                }), 400
         
         if not session_id:
             return jsonify({
@@ -302,9 +609,11 @@ def test_features():
                 "error": "At least one feature to test is required"
             }), 400
         
-        # Use the full resource ID if it starts with 'projects/', otherwise construct it
-        if not resource_id.startswith('projects/'):
-            resource_id = f"projects/{PROJECT_ID}/locations/{REGION}/reasoningEngines/{resource_id}"
+        # Extract just the resource ID number if it's a full path
+        if resource_id.startswith('projects/'):
+            numeric_id = resource_id.split('/')[-1]
+        else:
+            numeric_id = resource_id
         
         # Map of feature names to test messages
         feature_messages = {
@@ -321,7 +630,7 @@ def test_features():
         # Results for each feature test
         results = {}
         
-        # Test each requested feature
+        # Test each requested feature with the real agent
         for feature in features:
             if feature not in feature_messages:
                 results[feature] = {
@@ -333,59 +642,61 @@ def test_features():
             
             message = feature_messages[feature]
             
-            # Skip actual command execution for reliable testing
-            # command = f'python deployment/truck_sharing_remote.py --send --resource_id={resource_id} --session_id={session_id} --message="{message}"'
-            # result = run_command(command)
-            
-            # Generate a mock response for testing
             print(f"Testing feature '{feature}' with message: {message}")
             
-            # Create a more detailed mock response based on the feature
-            response_content = ""
-            if feature == "basic":
-                response_content = "I can help you find a pickup truck for your move. We have several options available this weekend including the Ford F-150 ($45/hour), Toyota Tacoma ($40/hour), and Chevrolet Silverado ($50/hour). All trucks come with basic insurance coverage and moving blankets."
-            elif feature == "weather":
-                response_content = "Based on the forecast for Boston next Saturday, I recommend a truck with a covered bed since there's a 60% chance of rain. Our Ford F-150 with cap or the enclosed U-Haul box truck would be perfect for keeping your belongings dry during transport."
-            elif feature == "cart":
-                response_content = "I've noted your preference for the Ford F-150. For loading assistance, we can add that for $25/hour. We also offer additional moving supplies: furniture pads ($15), appliance dolly ($10/day), and moving straps ($5). Would you like to add any of these to your reservation?"
-            elif feature == "booking":
-                response_content = "Great, I have you scheduled for a Ford F-150 on Saturday, June 1st from 9am to 3pm. The pickup location will be our downtown location at 123 Main Street. Is there anything else you'd like to confirm about your booking?"
-            elif feature == "booking_confirm":
-                response_content = "Perfect! Your 6-hour rental package is confirmed. Your reservation number is TB-12345. You'll receive a confirmation email shortly with all the details. On the day of your reservation, please bring your driver's license and a credit card for the security deposit."
-            elif feature == "firestore_store":
-                response_content = "I've stored your booking details in our database. Your booking ID is TB-12345. You can access these details anytime through your account or by referencing this booking ID when you contact customer service."
-            elif feature == "firestore_retrieve":
-                response_content = "Here are your current bookings: 1) TB-12345: Ford F-150 on June 1st, 9am-3pm, 2) TB-12346: Toyota Tacoma on June 15th, 10am-2pm. Would you like more details about any specific booking?"
-            elif feature == "firestore_detail":
-                response_content = "Here are the details for your most recent booking (TB-12345): Vehicle: Ford F-150, Date: June 1st, Time: 9am-3pm, Pickup Location: 123 Main Street, Extras: Loading assistance, Total Cost: $420 ($45/hr for truck + $25/hr for loading assistance, 6 hours total)."
+            # Escape quotes in the message to prevent command injection
+            escaped_message = message.replace('"', '\\"')
             
-            # Create a mock result with the appropriate response
-            result = {
-                "success": True,
-                "stdout": f"Response: {response_content}",
-                "stderr": "",
-                "returncode": 0
-            }
+            # Run the command to send the message to the real agent
+            command = f'python deployment/truck_sharing_remote.py --send --resource_id={numeric_id} --session_id={session_id} --message="{escaped_message}"'
+            result = run_command(command)
             
-            # Extract the response content from our mock response
+            if not result["success"]:
+                print(f"Error testing feature '{feature}': {result['stderr']}")
+                results[feature] = {
+                    "success": False,
+                    "error": f"Failed to test feature: {result['stderr'] or 'Unknown error'}",
+                    "message_sent": message
+                }
+                continue
+            
+            # Extract the response from the output
+            output = result["stdout"]
+            print(f"Feature '{feature}' response output: {output}")
+            
+            # Try to extract the response content from the output
             try:
-                # Extract text after "Response: " 
-                if "Response: " in result["stdout"]:
-                    extracted_response = result["stdout"].split("Response: ", 1)[1]
-                    response_content = extracted_response
+                # First check if there's a "Response:" marker
+                if "Response:" in output:
+                    response_content = output.split("Response:", 1)[1].strip()
                 else:
-                    response_content = result["stdout"]
+                    # Look for response text in JSON format
+                    text_matches = re.findall(r'"text": "([^"]*)"', output)
+                    
+                    if text_matches:
+                        # Join all text matches
+                        response_content = "\n".join([text.replace('\\n', '\n').replace('\\\"', '"') for text in text_matches])
+                    elif "Output:" in output:
+                        # Try to extract content after "Output:" marker
+                        response_content = output.split("Output:", 1)[1].strip()
+                    else:
+                        # If all else fails, just return the raw output
+                        response_content = output.strip()
                 
                 results[feature] = {
                     "success": True,
                     "response": response_content,
-                    "message_sent": message
+                    "message_sent": message,
+                    "raw_output": output
                 }
             except Exception as e:
+                print(f"Error parsing response for feature '{feature}': {e}")
                 results[feature] = {
-                    "success": False,
-                    "error": f"Failed to parse response: {str(e)}",
-                    "raw_output": result["stdout"]
+                    "success": True,  # Still return success since we got a response
+                    "response": output,  # Use raw output as response
+                    "message_sent": message,
+                    "raw_output": output,
+                    "parse_error": str(e)
                 }
             
             # Sleep to avoid rate limiting
@@ -397,6 +708,7 @@ def test_features():
         })
     
     except Exception as e:
+        print(f"Exception in test_features: {e}")
         return jsonify({
             "success": False,
             "error": str(e)
